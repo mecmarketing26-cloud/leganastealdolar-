@@ -1,0 +1,5 @@
+# Redirigir www → sin www (o al revés, elegí uno)
+https://www.leganastealdolar.com/* https://leganastealdolar.com/:splat 301!
+
+# SPA fallback (por si agregás rutas en el futuro)
+/* /index.html 200
