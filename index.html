@@ -349,6 +349,10 @@ table.dtbl { width:100%;border-collapse:collapse;font-size:12px; }
 /* CONFETTI */
 #cvs { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999; }
 
+/* ERROR BANNER */
+#apiErrorBanner { display:none;background:#fee2e2;border:1.5px solid #fca5a5;border-radius:var(--radius);padding:14px 18px;margin:0 auto 16px;max-width:720px;font-size:13px;font-weight:600;color:var(--red);line-height:1.5; }
+#apiErrorBanner button { margin-left:10px;background:none;border:none;color:var(--red);font-size:13px;font-weight:700;cursor:pointer;text-decoration:underline;font-family:inherit; }
+
 .pulse { animation:plsAnim 1s infinite;display:inline-block; }
 @keyframes plsAnim { 0%,100%{opacity:.3} 50%{opacity:1} }
 
@@ -452,6 +456,8 @@ footer { border-top:1px solid var(--border);padding:18px 20px;max-width:720px;ma
     <button class="tab" onclick="showSec('comp',this)">Interés compuesto</button>
   </div>
 </div>
+
+<div id="apiErrorBanner" role="alert" aria-live="assertive"></div>
 
 <main class="main" role="main" id="main-content">
 
@@ -646,45 +652,16 @@ footer { border-top:1px solid var(--border);padding:18px 20px;max-width:720px;ma
 
 <script>
 /* ══════════════════════════════════════════════════════════════════
-   DATOS — todos vienen de APIs via Netlify Function /api/market-data
-   Fallbacks hardcodeados solo se usan si la API falla
+   DATOS — todos vienen de APIs via Netlify Function
+   Si la API falla se muestra un error visible — sin datos hardcodeados
 ══════════════════════════════════════════════════════════════════ */
 
-/* Fallback CPI — por si FRED falla (datos históricos estables) */
-const CPI_FALLBACK={
-  1948:24.1,1960:29.6,1970:38.8,1980:82.4,1990:130.7,1995:152.4,
-  2000:172.2,2005:195.3,2010:218.1,2015:237.0,2020:258.8,
-  2022:292.7,2023:304.7,2024:314.5,2025:320.2
-};
+/* Estos objetos se llenan 100% desde la API al cargar */
+let CPI           = {};
+let PRICE_HISTORY = { sp500: {}, oro: {}, btc: {} };
 
-/* Fallback S&P 500 — datos verificados por si FRED falla */
-const SP500_FALLBACK={
-  1990:330,1995:616,2000:1320,2005:1248,2008:903,2009:1115,
-  2010:1258,2015:2044,2018:2507,2019:3231,2020:3756,
-  2021:4766,2022:3840,2023:4770,2024:4769,2025:5600
-};
-
-/* Fallback BTC — por si CryptoCompare falla */
-const BTC_FALLBACK={
-  2009:0.001,2010:0.30,2011:4.70,2012:13.50,2013:751,2014:315,
-  2015:430,2016:963,2017:13880,2018:3700,2019:7200,2020:28900,
-  2021:46200,2022:16600,2023:42600,2024:93500,2025:95000
-};
-
-/* Fallback Oro — datos World Bank verificados */
-const ORO_FALLBACK={
-  1990:383,1995:387,2000:279,2005:444,2010:1225,2015:1062,
-  2018:1269,2019:1477,2020:1770,2021:1798,2022:1801,
-  2023:1943,2024:2610,2025:2900
-};
-
-/* Estos objetos se llenan desde la API al cargar */
-let CPI         = {...CPI_FALLBACK};
-let PRICE_HISTORY = {
-  sp500: {...SP500_FALLBACK},
-  oro:   {...ORO_FALLBACK},
-  btc:   {...BTC_FALLBACK}
-};
+/* Indica qué APIs cargaron OK (para validar antes de calcular) */
+const apiStatus = { cpi: false, sp500: false, btc: false, oro: false, voo: false };
 
 /* Función de interpolación para años sin dato en el fallback */
 function interpolar(obj, yr) {
@@ -743,12 +720,12 @@ function showSec(id,btn){
    DATA LAYER — todo pasa por la Netlify Function /api/market-data
    Las API keys viven en variables de entorno de Netlify, nunca en el código
 ══════════════════════════════════════════════════════════════ */
-let curCPI   = 320.2;
-let curInfl  = 2.8;
+let curCPI   = null;   // se llena desde FRED via Netlify Function
+let curInfl  = null;   // se llena desde FRED via Netlify Function
 let crypto   = {};
 const API    = '/.netlify/functions/market-data';
 
-/* Muestra un spinner de carga en los stats del hero */
+/* Muestra spinner en los stats del hero */
 function setLoadingState() {
   ['heroAcum','heroAnual'].forEach(id => {
     const el = $(id);
@@ -756,60 +733,124 @@ function setLoadingState() {
   });
 }
 
-/* Carga todos los datos de una sola vez (1 request) */
+/* Muestra un banner de error visible al usuario */
+function showApiError(msg) {
+  const banner = $('apiErrorBanner');
+  if (!banner) return;
+  banner.innerHTML = `⚠️ Error al cargar datos: ${sanitize(msg)}. La calculadora no funcionará correctamente sin datos actualizados.
+    <button onclick="location.reload()">Reintentar</button>`;
+  banner.style.display = 'block';
+}
+
+/* Muestra error en stats del hero */
+function showHeroError() {
+  ['heroAcum','heroAnual'].forEach(id => {
+    const el = $(id);
+    if (el) el.innerHTML = '<span style="color:var(--red);font-size:13px">Sin datos</span>';
+  });
+}
+
+/* Carga todos los datos de una sola vez (1 request a la Netlify Function) */
 async function loadAllData() {
   setLoadingState();
+
+  // Intentar la Netlify Function
+  let d = null;
+  let fetchError = null;
   try {
-    // Intentar primero con el redirect /api/, luego con la URL directa
-  let r;
-  try {
-    r = await fetch(`${API}?type=all`);
-    if (!r.ok || r.headers.get('content-type')?.includes('text/html')) {
-      throw new Error('redirect failed');
+    const r = await fetch(`${API}?type=all`);
+    const ct = r.headers.get('content-type') || '';
+    if (ct.includes('text/html')) {
+      throw new Error('La función devolvió HTML en vez de JSON — verificá el deploy en Netlify');
     }
-  } catch(e) {
-    r = await fetch(`/.netlify/functions/market-data?type=all`);
-  }
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-
-    /* CPI — reemplaza el objeto con datos frescos de FRED */
-    if (d.cpi && Object.keys(d.cpi).length > 10) {
-      Object.assign(CPI, d.cpi);
-      const years  = Object.keys(CPI).map(Number);
-      const maxYr  = Math.max(...years);
-      curCPI       = CPI[maxYr];
-      const prevYr = maxYr - 1;
-      if (CPI[prevYr]) curInfl = ((CPI[maxYr] / CPI[prevYr]) - 1) * 100;
-    }
-
-    /* VOO — precio actual */
-    if (d.voo?.price) {
-      window._vooPrice = d.voo.price;
-      const vooF = 118 / getSP(2010);
-      PRICE_HISTORY.sp500[2025] = Math.round(d.voo.price / vooF);
-      updateVooTicker(d.voo.price, d.voo.change || 0);
-    }
-
-    /* BTC histórico — reemplaza con datos reales de CryptoCompare */
-    if (d.btc && Object.keys(d.btc).length > 5) {
-      Object.assign(PRICE_HISTORY.btc, d.btc);
-    }
-
-    /* Actualiza UI del hero */
-    updateInflationUI();
-
-  } catch(e) {
-    console.warn('API load failed, using fallbacks:', e.message);
-    updateInflationUI();
+    d = await r.json();
+  } catch (e) {
+    fetchError = e.message;
+    console.error('loadAllData error:', e.message);
   }
 
-  /* CoinGecko siempre se llama directo (CORS abierto, sin key) */
+  if (!d) {
+    showApiError(fetchError || 'No se pudo conectar con el servidor');
+    showHeroError();
+    await fetchCryptoLive();
+    return;
+  }
+
+  // Si el servidor reporta error en CPI (dato crítico)
+  if (d.cpiError) {
+    console.error('CPI error desde servidor:', d.cpiError);
+  }
+
+  /* CPI — dato crítico para todos los cálculos */
+  if (d.cpi && Object.keys(d.cpi).length > 10) {
+    Object.assign(CPI, d.cpi);
+    apiStatus.cpi = true;
+    const years  = Object.keys(CPI).map(Number);
+    const maxYr  = Math.max(...years);
+    curCPI       = CPI[maxYr];
+    const prevYr = maxYr - 1;
+    if (CPI[prevYr]) curInfl = ((CPI[maxYr] / CPI[prevYr]) - 1) * 100;
+  } else {
+    const msg = d.cpiError || 'FRED no devolvió datos de inflación';
+    showApiError('Inflación CPI: ' + msg);
+    showHeroError();
+  }
+
+  /* S&P 500 (viene incluido en los datos de VOO/SP500) */
+  // El historial de S&P 500 se carga via type=sp500 por separado si se necesita
+  // Por ahora lo inicializamos vacío y VOO nos da el precio actual
+
+  /* VOO — precio actual del ETF */
+  if (d.voo?.price) {
+    window._vooPrice = d.voo.price;
+    apiStatus.voo = true;
+    updateVooTicker(d.voo.price, d.voo.change || 0);
+  } else {
+    $('tVoo')  && ($('tVoo').textContent  = 'Sin datos');
+    $('tVoo2') && ($('tVoo2').textContent = 'Sin datos');
+  }
+
+  /* BTC histórico — datos reales de CryptoCompare */
+  if (d.btc && Object.keys(d.btc).length > 5) {
+    Object.assign(PRICE_HISTORY.btc, d.btc);
+    apiStatus.btc = true;
+  } else {
+    console.warn('BTC histórico no disponible desde la API');
+  }
+
+  /* Oro histórico — datos de FreeGoldAPI (pasados por la función) */
+  if (d.gold && Object.keys(d.gold).length > 5) {
+    Object.assign(PRICE_HISTORY.oro, d.gold);
+    apiStatus.oro = true;
+  } else {
+    console.warn('Oro histórico no disponible desde FreeGoldAPI');
+  }
+
+  // Cargar S&P 500 histórico por separado (FRED lo tiene, necesitamos el historial)
+  try {
+    const rSp = await fetch(`${API}?type=sp500`);
+    if (rSp.ok && (rSp.headers.get('content-type') || '').includes('application/json')) {
+      const sp = await rSp.json();
+      if (sp && Object.keys(sp).length > 5) {
+        Object.assign(PRICE_HISTORY.sp500, sp);
+        apiStatus.sp500 = true;
+      }
+    }
+  } catch (e) {
+    console.warn('S&P 500 histórico no disponible:', e.message);
+  }
+
+  /* Actualiza UI del hero con inflación real */
+  updateInflationUI();
+
+  /* CoinGecko — siempre directo desde el browser (CORS abierto) */
   await fetchCryptoLive();
 }
 
 /* Actualiza los textos de inflación en el hero y ticker */
 function updateInflationUI() {
+  if (curInfl == null || curCPI == null) return; // esperar a que carguen los datos
   const pct = curInfl.toFixed(1) + '%';
   $('tCpi')  && ($('tCpi').textContent  = pct);
   $('tCpi2') && ($('tCpi2').textContent = pct);
@@ -837,17 +878,27 @@ function updateVooTicker(price, chg) {
 async function fetchCryptoLive() {
   try {
     const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,gold&vs_currencies=usd&include_24hr_change=true');
+    if (!r.ok) throw new Error('CoinGecko HTTP ' + r.status);
     const d = await r.json();
-    crypto.btc  = d.bitcoin?.usd;  crypto.btcC  = d.bitcoin?.usd_24h_change;
-    crypto.eth  = d.ethereum?.usd; crypto.ethC  = d.ethereum?.usd_24h_change;
-    crypto.gold = d.gold?.usd;     crypto.goldC = d.gold?.usd_24h_change;
+    crypto.btc  = d.bitcoin?.usd  ?? null;
+    crypto.btcC = d.bitcoin?.usd_24h_change ?? null;
+    crypto.eth  = d.ethereum?.usd ?? null;
+    crypto.ethC = d.ethereum?.usd_24h_change ?? null;
+    crypto.gold = d.gold?.usd     ?? null;
+    crypto.goldC= d.gold?.usd_24h_change ?? null;
+    // Actualizar precio actual en PRICE_HISTORY para cálculos
     if (crypto.gold) {
       PRICE_HISTORY.oro[2025] = Math.round(crypto.gold);
       PRICE_HISTORY.oro[2026] = Math.round(crypto.gold);
+      apiStatus.oro = true;
     }
-    if (crypto.btc) PRICE_HISTORY.btc[2025] = Math.round(crypto.btc);
-  } catch(e) {
-    crypto.btc = 85000; crypto.eth = 1900; crypto.gold = 2900;
+    if (crypto.btc) {
+      PRICE_HISTORY.btc[2025] = Math.round(crypto.btc);
+      PRICE_HISTORY.btc[2026] = Math.round(crypto.btc);
+    }
+  } catch (e) {
+    console.warn('CoinGecko no disponible:', e.message);
+    // NO usar valores hardcodeados — mostrar "Sin datos" en el ticker
   }
   setTick('tBtc','tBtc2','tBtcC','tBtcC2', crypto.btc,  crypto.btcC);
   setTick('tEth','tEth2','tEthC','tEthC2', crypto.eth,  crypto.ethC);
@@ -1145,7 +1196,6 @@ function runComparison(){
   if(selectedCmp.size===0){ alert('Seleccioná al menos una alternativa para comparar.'); return; }
 
   const { amtStart, years, nomG, inflAcum, realG, currentType } = calcState;
-  const infAFactor = (curInfl/100);
 
   // Row de la inversión actual
   const rows = [];
@@ -1164,6 +1214,7 @@ function runComparison(){
   // Inflación acumulada real del período (usada para todos los activos)
   const yearBuy  = calcState.yearBuy;
   const cpiStart = getCPI(yearBuy) || getCPI(2000);
+  if (!cpiStart || curCPI == null) { alert('Datos de inflación no disponibles.'); return; }
   const inflAcumFactor = curCPI / cpiStart; // ej: 320/237 = 1.35 para 2015-2026
 
   // Alternativas seleccionadas
@@ -1176,11 +1227,12 @@ function runComparison(){
       // Colchón: 0% nominal. Perdés exactamente la inflación acumulada.
       finalNomG = 0;
       dataNote = '0% nominal';
-    } else if (PRICE_HISTORY[id]) {
+    } else if (PRICE_HISTORY[id] && Object.keys(PRICE_HISTORY[id]).length > 0) {
       // Activos con precios históricos reales
       const prices = PRICE_HISTORY[id];
-      const startYr = Math.max(yearBuy, Math.min(...Object.keys(prices).map(Number)));
-      const endYr   = Math.min(2025,    Math.max(...Object.keys(prices).map(Number)));
+      const priceYears = Object.keys(prices).map(Number);
+      const startYr = Math.max(yearBuy, Math.min(...priceYears));
+      const endYr   = Math.min(2025,    Math.max(...priceYears));
       const pStart  = prices[startYr];
       const pEnd    = prices[endYr];
       if (!pStart || !pEnd) {
@@ -1332,10 +1384,41 @@ function calcular(){
   const tp = currentAsset;
   if (!tp) { alert('Elegí un activo primero.'); return; }
 
+  // Verificar datos críticos disponibles
+  if (!apiStatus.cpi || curCPI == null || Object.keys(CPI).length === 0) {
+    alert('Los datos de inflación (CPI) no están disponibles aún. Verificá tu conexión y recargá la página.');
+    return;
+  }
+  if (tp === 'btc' && (!apiStatus.btc || Object.keys(PRICE_HISTORY.btc).length < 3)) {
+    alert('El historial de precios de Bitcoin no está disponible. Recargá la página e intentá de nuevo.');
+    return;
+  }
+  if (tp === 'sp500' && (!apiStatus.sp500 || Object.keys(PRICE_HISTORY.sp500).length < 3)) {
+    alert('El historial del S&P 500 no está disponible. Recargá la página e intentá de nuevo.');
+    return;
+  }
+  if (tp === 'oro' && (!apiStatus.oro || Object.keys(PRICE_HISTORY.oro).length < 3)) {
+    alert('El historial del oro no está disponible. Recargá la página e intentá de nuevo.');
+    return;
+  }
+  if (tp === 'btc' && !crypto.btc) {
+    alert('El precio actual de Bitcoin no está disponible (CoinGecko). Recargá la página e intentá de nuevo.');
+    return;
+  }
+  if (tp === 'sp500' && !window._vooPrice) {
+    alert('El precio actual del ETF VOO no está disponible. Recargá la página e intentá de nuevo.');
+    return;
+  }
+  if (tp === 'oro' && !crypto.gold) {
+    alert('El precio actual del oro no está disponible (CoinGecko). Recargá la página e intentá de nuevo.');
+    return;
+  }
+
   const yr = parseInt($('yearBuy')?.value);
   if (!yr || yr < 1948 || yr > 2025) { alert('Verificá el año.'); return; }
 
   const cs     = getCPI(yr) || getCPI(2000);
+  if (!cs) { alert('No hay datos de CPI para el año ' + yr + '. Probá con un año más reciente.'); return; }
   const inflAcumFactor = curCPI / cs;
   const years  = 2026 - yr;
 
@@ -1409,8 +1492,11 @@ function calcular(){
   // ── ETF S&P 500 (VOO) ────────────────────────────────────────
   } else if (tp === 'sp500') {
     const pStartSP  = getSP(yr);
-    const vooFactor = 118 / PRICE_HISTORY.sp500[2010];
-    const pEndVOO   = window._vooPrice || (PRICE_HISTORY.sp500[2025] * vooFactor);
+    // Factor de conversión SP500 índice → precio VOO, calculado desde el precio real actual
+    const sp500Keys = Object.keys(PRICE_HISTORY.sp500).map(Number).sort((a,b)=>a-b);
+    const latestSpYr = sp500Keys[sp500Keys.length - 1] || 2025;
+    const vooFactor = window._vooPrice / (PRICE_HISTORY.sp500[latestSpYr] || 1);
+    const pEndVOO   = window._vooPrice;
     const dividends = document.querySelector('input[name="spDividends"]:checked')?.value === 'si';
     const divRate   = dividends ? 0.02 : 0; // ~2% anual extra reinvertido
     // Acumula cuotas compradas al precio VOO proporcional de cada año
@@ -1480,7 +1566,7 @@ function calcular(){
   const poder  = amtStart * inflAcumFactor;
 
   // Guarda estado para comparación
-  calcState = { amtStart, years, nomG, inflAcum: inflAcumFactor - 1, realG, yearBuy: yr, currentType: tp };
+  calcState = { amtStart, amtEnd, years, nomG, inflAcum: inflAcumFactor - 1, realG, yearBuy: yr, currentType: tp };
 
   /* ── Veredicto emocional ── */
   const tnames = {inmueble:'la propiedad',vehiculo:'el vehículo',colchon:'el dólar guardado',plazo_fijo:'el plazo fijo',sp500:'el ETF S&P 500 (VOO)',btc:'Bitcoin',oro:'el oro',otro:'tu inversión'};
@@ -1566,12 +1652,14 @@ function calcular(){
 function runAportesSim() {
   const state = calcState;
   if (!state || !state.yearBuy) return;
+  if (curCPI == null || !apiStatus.cpi) return; // sin datos de inflación
 
   const monthly  = parseFloat($('simMonthly')?.value) || 0;
   const strategy = $('simStrategy')?.value || 'sp500';
   const yr       = state.yearBuy;
   const years    = state.years;
   const cs       = getCPI(yr) || getCPI(2000);
+  if (!cs) return;
   const inflAcumFactor = curCPI / cs;
 
   const totalInv = state.amtStart + monthly * 12 * years;
@@ -1580,35 +1668,45 @@ function runAportesSim() {
 
   // Suma DCA mensual según estrategia
   if (strategy === 'btc') {
-    const pEnd = crypto.btc || PRICE_HISTORY.btc[2025];
-    let extraBtc = 0;
-    for (let i = 1; i <= years; i++) {
-      const yy = Math.min(yr + i, 2025);
-      const pp = PRICE_HISTORY.btc[yy] || pEnd;
-      extraBtc += (monthly * 12) / pp;
+    const pEnd = crypto.btc || PRICE_HISTORY.btc[2025] || PRICE_HISTORY.btc[2024];
+    if (!pEnd) { /* sin datos de BTC, saltar */ }
+    else {
+      let extraBtc = 0;
+      for (let i = 1; i <= years; i++) {
+        const yy = Math.min(yr + i, 2025);
+        const pp = getBTC(yy) || pEnd;
+        if (pp) extraBtc += (monthly * 12) / pp;
+      }
+      finalNom += extraBtc * pEnd;
     }
-    finalNom += extraBtc * pEnd;
 
   } else if (strategy === 'sp500') {
-    const vooFactor = 118 / PRICE_HISTORY.sp500[2010];
-    const pEndVOO   = window._vooPrice || (PRICE_HISTORY.sp500[2025] * vooFactor);
-    for (let i = 1; i <= years; i++) {
-      const yy   = Math.min(yr + i, 2025);
-      const ppS  = PRICE_HISTORY.sp500[yr + i - 1] || PRICE_HISTORY.sp500[yr];
-      const ppE  = PRICE_HISTORY.sp500[yy] || PRICE_HISTORY.sp500[2025];
-      const rem  = years - i;
-      finalNom  += (monthly * 12) * (ppE / ppS) * (pEndVOO / (ppE * vooFactor));
+    const sp2010 = getSP(2010);
+    const vooFactor = sp2010 ? (118 / sp2010) : null;
+    const pEndVOO = window._vooPrice || (vooFactor && PRICE_HISTORY.sp500[2025] ? PRICE_HISTORY.sp500[2025] * vooFactor : null);
+    if (vooFactor && pEndVOO) {
+      for (let i = 1; i <= years; i++) {
+        const yy   = Math.min(yr + i, 2025);
+        const ppS  = getSP(yr + i - 1) || getSP(yr);
+        const ppE  = getSP(yy) || getSP(2025);
+        if (ppS && ppE) {
+          finalNom += (monthly * 12) * (ppE / ppS) * (pEndVOO / (ppE * vooFactor));
+        }
+      }
     }
 
   } else if (strategy === 'oro') {
-    const pEnd = crypto.gold || PRICE_HISTORY.oro[2025];
-    let extraOz = 0;
-    for (let i = 1; i <= years; i++) {
-      const yy = Math.min(yr + i, 2025);
-      const pp = PRICE_HISTORY.oro[yy] || pEnd;
-      extraOz += (monthly * 12) / pp;
+    const pEnd = crypto.gold || PRICE_HISTORY.oro[2025] || PRICE_HISTORY.oro[2024];
+    if (!pEnd) { /* sin datos de oro, saltar */ }
+    else {
+      let extraOz = 0;
+      for (let i = 1; i <= years; i++) {
+        const yy = Math.min(yr + i, 2025);
+        const pp = getOro(yy) || pEnd;
+        if (pp) extraOz += (monthly * 12) / pp;
+      }
+      finalNom += extraOz * pEnd;
     }
-    finalNom += extraOz * pEnd;
 
   } else {
     // colchon: no crece
@@ -1634,7 +1732,15 @@ function toggleAdv(){
 
 /* ── PLATFORMS ── */
 function buildPlat(){
-  const btc=crypto.btc||85000, eth=crypto.eth||1900;
+  const btc = crypto.btc, eth = crypto.eth;
+  if (!btc || !eth) {
+    // Si aún no cargaron los precios, mostrar placeholder
+    const platList = $('platList');
+    if (platList && !platList.innerHTML) {
+      platList.innerHTML = '<p style="text-align:center;color:var(--ink2);padding:20px;font-size:13px">Cargando precios en tiempo real…</p>';
+    }
+    return;
+  }
   const f=n=>'$'+fmtN(n);
   const plats=[
     {name:'Lemon Cash',type:'Exchange · Argentina',link:'TU_LINK_LEMON',
@@ -1669,7 +1775,7 @@ function calcComp(){
   const ap=parseFloat($('cAporte').value)||0;
   const t=parseFloat($('cTasa').value)/100;
   const an=parseInt($('cAnios').value);
-  const inf=curInfl/100;
+  const inf=(curInfl ?? 3)/100; // 3% si aún no cargó la inflación real
   let nom=cap,cf=1;
   const totInv=cap+ap*12*an;
   let tb='';

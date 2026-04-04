@@ -1,88 +1,92 @@
-const https = require('https');
+// Uses global fetch (Node 18+) — no require('https') needed
 
 const FRED_KEY   = process.env.FRED_API_KEY;
 const FMP_KEY    = process.env.FMP_API_KEY;
 const CRYPTO_KEY = process.env.CRYPTOCOMPARE_API_KEY;
 
-function fetchJSON(url, headers = {}) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers }, res => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch(e) { reject(new Error('JSON parse error: ' + data.slice(0,200))); }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
-  });
+async function fetchJSON(url, headers = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const res = await fetch(url, { headers, signal: controller.signal });
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error('JSON parse error: ' + text.slice(0, 200));
+    }
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 exports.handler = async (event) => {
-  const headers = {
+  const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Content-Type': 'application/json',
     'Cache-Control': 'public, max-age=3600'
   };
 
-  // Netlify puede pasar params de distintas maneras — leemos todas
+  // Leer el parámetro type desde todas las formas posibles en Netlify
   const params = event.queryStringParameters || {};
   let type = params.type || null;
   if (!type && event.rawQuery) {
-    try { type = new URLSearchParams(event.rawQuery).get('type'); } catch(e) {}
+    try { type = new URLSearchParams(event.rawQuery).get('type'); } catch (e) {}
   }
   if (!type && event.rawUrl) {
-    try { type = new URL(event.rawUrl).searchParams.get('type'); } catch(e) {}
+    try { type = new URL(event.rawUrl).searchParams.get('type'); } catch (e) {}
   }
 
-  // Debug logs — visibles en Netlify Functions log
-  console.log('rawQuery:', event.rawQuery);
-  console.log('queryStringParameters:', JSON.stringify(params));
-  console.log('resolved type:', type);
-  console.log('keys present — FRED:', !!process.env.FRED_API_KEY, 'FMP:', !!process.env.FMP_API_KEY, 'CRYPTO:', !!process.env.CRYPTOCOMPARE_API_KEY);
+  console.log('market-data called — type:', type,
+    '| keys: FRED=%s FMP=%s CRYPTO=%s',
+    !!FRED_KEY, !!FMP_KEY, !!CRYPTO_KEY);
+
+  if (!FRED_KEY || !FMP_KEY || !CRYPTO_KEY) {
+    console.error('Una o más API keys no están configuradas en variables de entorno de Netlify');
+  }
 
   try {
 
-    // ── CPI HISTÓRICO (inflación USD desde 1948) ──────────────────────────
+    // ── CPI HISTÓRICO (inflación USD desde 1948) ──────────────────────
     if (type === 'cpi') {
+      if (!FRED_KEY) throw new Error('FRED_API_KEY no configurada');
       const url = `https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&observation_start=1948-01-01&frequency=a&aggregation_method=avg&api_key=${FRED_KEY}&file_type=json`;
       const data = await fetchJSON(url);
+      if (!data.observations) throw new Error('FRED no devolvió observaciones: ' + JSON.stringify(data).slice(0, 200));
       const result = {};
-      (data.observations || []).forEach(obs => {
-        const yr = parseInt(obs.date.slice(0,4));
+      data.observations.forEach(obs => {
+        const yr = parseInt(obs.date.slice(0, 4));
         const val = parseFloat(obs.value);
-        if (!isNaN(val)) result[yr] = parseFloat(val.toFixed(1));
+        if (!isNaN(val) && obs.value !== '.') result[yr] = parseFloat(val.toFixed(1));
       });
-      return { statusCode: 200, headers, body: JSON.stringify(result) };
+      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(result) };
     }
 
-    // ── S&P 500 HISTÓRICO (via FRED — serie SP500, últimos 10 años) ────────
-    // + datos históricos más largos via serie MULTPL/SP500 real price
+    // ── S&P 500 HISTÓRICO (via FRED) ──────────────────────────────────
     if (type === 'sp500') {
-      // FRED tiene S&P 500 solo últimos 10 años por licencia
-      // Complementamos con Shiller CAPE ratio data (serie SCHILLERPE) que sí tiene histórico
-      // Para precio real usamos la serie disponible
+      if (!FRED_KEY) throw new Error('FRED_API_KEY no configurada');
       const url = `https://api.stlouisfed.org/fred/series/observations?series_id=SP500&frequency=a&aggregation_method=eop&api_key=${FRED_KEY}&file_type=json`;
       const data = await fetchJSON(url);
+      if (!data.observations) throw new Error('FRED SP500 sin observaciones');
       const result = {};
-      (data.observations || []).forEach(obs => {
-        const yr = parseInt(obs.date.slice(0,4));
+      data.observations.forEach(obs => {
+        const yr = parseInt(obs.date.slice(0, 4));
         const val = parseFloat(obs.value);
         if (!isNaN(val) && obs.value !== '.') result[yr] = Math.round(val);
       });
-      return { statusCode: 200, headers, body: JSON.stringify(result) };
+      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(result) };
     }
 
-    // ── VOO PRECIO ACTUAL (FMP) ────────────────────────────────────────────
+    // ── VOO PRECIO ACTUAL (FMP) ────────────────────────────────────────
     if (type === 'voo') {
+      if (!FMP_KEY) throw new Error('FMP_API_KEY no configurada');
       const url = `https://financialmodelingprep.com/api/v3/quote/VOO?apikey=${FMP_KEY}`;
       const data = await fetchJSON(url);
-      const q = data[0];
-      if (!q) throw new Error('No VOO data');
+      const q = Array.isArray(data) ? data[0] : null;
+      if (!q || !q.price) throw new Error('FMP no devolvió precio de VOO');
       return {
         statusCode: 200,
-        headers,
+        headers: corsHeaders,
         body: JSON.stringify({
           price:  q.price,
           change: q.changesPercentage,
@@ -92,108 +96,120 @@ exports.handler = async (event) => {
       };
     }
 
-    // ── BTC HISTÓRICO POR AÑO (CryptoCompare) ────────────────────────────
-    if (type === 'btc_history') {
-      const year = parseInt(event.queryStringParameters?.year);
-      if (!year || year < 2010 || year > 2025) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid year' }) };
-      }
-      // Pedir el precio de cierre del 31 de diciembre de ese año
-      const ts = Math.floor(new Date(`${year}-12-31T23:59:00Z`).getTime() / 1000);
-      const url = `https://min-api.cryptocompare.com/data/pricehistorical?fsym=BTC&tsyms=USD&ts=${ts}`;
-      const data = await fetchJSON(url, { Authorization: `Apikey ${CRYPTO_KEY}` });
-      const price = data?.BTC?.USD;
-      if (!price) throw new Error('No BTC price for ' + year);
-      return { statusCode: 200, headers, body: JSON.stringify({ year, price: Math.round(price) }) };
-    }
-
-    // ── BTC TODOS LOS AÑOS DE UNA (más eficiente — 1 request) ────────────
+    // ── BTC TODOS LOS AÑOS DE UNA (1 request, diciembre de cada año) ──
     if (type === 'btc_all') {
-      // Trae datos diarios históricos de BTC, tomamos cierre de cada diciembre
-      // CryptoCompare permite hasta 2000 días por request
-      const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000&toTs=${Math.floor(Date.now()/1000)}`;
+      if (!CRYPTO_KEY) throw new Error('CRYPTOCOMPARE_API_KEY no configurada');
+      const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000&toTs=${Math.floor(Date.now() / 1000)}`;
       const data = await fetchJSON(url, { Authorization: `Apikey ${CRYPTO_KEY}` });
-      const days = data?.Data?.Data || [];
+      const days = data?.Data?.Data;
+      if (!days || days.length === 0) throw new Error('CryptoCompare no devolvió datos históricos');
       const result = {};
+      // Los datos vienen en orden cronológico — guardamos el último precio de cada diciembre
       days.forEach(d => {
         const date = new Date(d.time * 1000);
-        const yr   = date.getFullYear();
-        const mo   = date.getMonth(); // 11 = diciembre
-        if (mo === 11) {
-          // Guardar el último precio de diciembre para cada año
-          if (!result[yr] || date > new Date(result[yr].time * 1000)) {
-            result[yr] = Math.round(d.close);
-          }
+        if (date.getMonth() === 11) { // 11 = diciembre
+          result[date.getFullYear()] = Math.round(d.close);
         }
       });
-      return { statusCode: 200, headers, body: JSON.stringify(result) };
+      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(result) };
     }
 
-    // ── ORO HISTÓRICO (FreeGoldAPI — CORS abierto, no necesita pasar por acá) ──
-    // Este endpoint existe por si querés centralizar todo
+    // ── ORO HISTÓRICO (FreeGoldAPI) ───────────────────────────────────
     if (type === 'gold_history') {
       const data = await fetchJSON('https://freegoldapi.com/data/latest.json');
+      if (!Array.isArray(data)) throw new Error('FreeGoldAPI no devolvió array');
       const result = {};
       data.forEach(d => {
-        const yr = parseInt(d.date?.slice(0,4));
-        if (yr >= 1970 && d.price > 0) {
-          result[yr] = Math.round(d.price);
-        }
+        const yr = parseInt(d.date?.slice(0, 4));
+        if (yr >= 1970 && d.price > 0) result[yr] = Math.round(d.price);
       });
-      return { statusCode: 200, headers, body: JSON.stringify(result) };
+      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(result) };
     }
 
-    // ── TODOS LOS DATOS DE UNA (para cargar la web más rápido) ────────────
+    // ── TODOS LOS DATOS DE UNA (para cargar la web en 1 round-trip) ──
     if (type === 'all') {
-      const [cpiData, vooData, btcData] = await Promise.allSettled([
-        fetchJSON(`https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&observation_start=1948-01-01&frequency=a&aggregation_method=avg&api_key=${FRED_KEY}&file_type=json`),
-        fetchJSON(`https://financialmodelingprep.com/api/v3/quote/VOO?apikey=${FMP_KEY}`),
-        fetchJSON(`https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000`, { Authorization: `Apikey ${CRYPTO_KEY}` }),
+      const [cpiRes, vooRes, btcRes, goldRes] = await Promise.allSettled([
+        FRED_KEY
+          ? fetchJSON(`https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&observation_start=1948-01-01&frequency=a&aggregation_method=avg&api_key=${FRED_KEY}&file_type=json`)
+          : Promise.reject(new Error('FRED_API_KEY no configurada')),
+        FMP_KEY
+          ? fetchJSON(`https://financialmodelingprep.com/api/v3/quote/VOO?apikey=${FMP_KEY}`)
+          : Promise.reject(new Error('FMP_API_KEY no configurada')),
+        CRYPTO_KEY
+          ? fetchJSON(`https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000&toTs=${Math.floor(Date.now() / 1000)}`, { Authorization: `Apikey ${CRYPTO_KEY}` })
+          : Promise.reject(new Error('CRYPTOCOMPARE_API_KEY no configurada')),
+        fetchJSON('https://freegoldapi.com/data/latest.json').catch(e => null),
       ]);
 
       // CPI
       const cpi = {};
-      if (cpiData.status === 'fulfilled') {
-        (cpiData.value.observations || []).forEach(obs => {
-          const yr = parseInt(obs.date.slice(0,4));
+      let cpiError = null;
+      if (cpiRes.status === 'fulfilled' && cpiRes.value?.observations) {
+        cpiRes.value.observations.forEach(obs => {
+          const yr = parseInt(obs.date.slice(0, 4));
           const val = parseFloat(obs.value);
           if (!isNaN(val) && obs.value !== '.') cpi[yr] = parseFloat(val.toFixed(1));
         });
+      } else {
+        cpiError = cpiRes.reason?.message || 'Error FRED';
+        console.error('CPI fetch failed:', cpiError);
       }
 
       // VOO
       let voo = null;
-      if (vooData.status === 'fulfilled' && vooData.value[0]) {
-        const q = vooData.value[0];
-        voo = { price: q.price, change: q.changesPercentage };
+      if (vooRes.status === 'fulfilled') {
+        const q = Array.isArray(vooRes.value) ? vooRes.value[0] : null;
+        if (q?.price) voo = { price: q.price, change: q.changesPercentage };
+        else console.error('VOO: respuesta inesperada de FMP');
+      } else {
+        console.error('VOO fetch failed:', vooRes.reason?.message);
       }
 
       // BTC histórico diciembre por año
       const btc = {};
-      if (btcData.status === 'fulfilled') {
-        const days = btcData.value?.Data?.Data || [];
+      if (btcRes.status === 'fulfilled') {
+        const days = btcRes.value?.Data?.Data || [];
         days.forEach(d => {
           const date = new Date(d.time * 1000);
-          const yr   = date.getFullYear();
-          const mo   = date.getMonth();
-          if (mo === 11) btc[yr] = Math.round(d.close);
+          if (date.getMonth() === 11) {
+            btc[date.getFullYear()] = Math.round(d.close);
+          }
+        });
+      } else {
+        console.error('BTC fetch failed:', btcRes.reason?.message);
+      }
+
+      // Oro histórico
+      const gold = {};
+      if (goldRes.status === 'fulfilled' && Array.isArray(goldRes.value)) {
+        goldRes.value.forEach(d => {
+          const yr = parseInt(d.date?.slice(0, 4));
+          if (yr >= 1970 && d.price > 0) gold[yr] = Math.round(d.price);
         });
       }
 
+      // Si CPI falló (dato crítico), indicarlo en la respuesta
+      const response = { cpi, voo, btc, gold };
+      if (cpiError) response.cpiError = cpiError;
+
       return {
         statusCode: 200,
-        headers,
-        body: JSON.stringify({ cpi, voo, btc })
+        headers: corsHeaders,
+        body: JSON.stringify(response)
       };
     }
 
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown type: ' + type }) };
+    return {
+      statusCode: 400,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: 'Parámetro type inválido: ' + type })
+    };
 
-  } catch(err) {
+  } catch (err) {
     console.error('market-data error:', err.message);
     return {
       statusCode: 500,
-      headers,
+      headers: corsHeaders,
       body: JSON.stringify({ error: err.message })
     };
   }

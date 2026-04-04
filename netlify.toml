@@ -2,8 +2,11 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "18"
+
 [functions]
-  node_bundler = "esbuild"
+  node_bundler = "nft"
 
 [[redirects]]
   from = "/api/*"
