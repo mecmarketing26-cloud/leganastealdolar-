@@ -1,8 +1,15 @@
 // Uses global fetch (Node 18+) — no require('https') needed
+//
+// Variables de entorno requeridas en Netlify:
+//   FRED_API_KEY          → api.stlouisfed.org (gratis, sin tarjeta)
+//   FINNHUB_API_KEY       → finnhub.io         (gratis, sin tarjeta) — reemplaza FMP
+//   CRYPTOCOMPARE_API_KEY → cryptocompare.com  (gratis, sin tarjeta)
+//   GOLD_API_KEY          → gold-api.com       (gratis, sin tarjeta) — oro real-time
 
 const FRED_KEY   = process.env.FRED_API_KEY;
-const FMP_KEY    = process.env.FMP_API_KEY;
+const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
 const CRYPTO_KEY = process.env.CRYPTOCOMPARE_API_KEY;
+const GOLD_KEY   = process.env.GOLD_API_KEY;
 
 async function fetchJSON(url, headers = {}) {
   const controller = new AbortController();
@@ -38,10 +45,10 @@ exports.handler = async (event) => {
   }
 
   console.log('market-data called — type:', type,
-    '| keys: FRED=%s FMP=%s CRYPTO=%s',
-    !!FRED_KEY, !!FMP_KEY, !!CRYPTO_KEY);
+    '| keys: FRED=%s FINNHUB=%s CRYPTO=%s GOLD=%s',
+    !!FRED_KEY, !!FINNHUB_KEY, !!CRYPTO_KEY, !!GOLD_KEY);
 
-  if (!FRED_KEY || !FMP_KEY || !CRYPTO_KEY) {
+  if (!FRED_KEY || !FINNHUB_KEY || !CRYPTO_KEY || !GOLD_KEY) {
     console.error('Una o más API keys no están configuradas en variables de entorno de Netlify');
   }
 
@@ -77,21 +84,42 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(result) };
     }
 
-    // ── VOO PRECIO ACTUAL (FMP) ────────────────────────────────────────
+    // ── VOO PRECIO ACTUAL (Finnhub) ───────────────────────────────────
+    // Reemplaza FMP — endpoint gratuito, CORS ok desde Netlify Functions
     if (type === 'voo') {
-      if (!FMP_KEY) throw new Error('FMP_API_KEY no configurada');
-      const url = `https://financialmodelingprep.com/api/v3/quote/VOO?apikey=${FMP_KEY}`;
+      if (!FINNHUB_KEY) throw new Error('FINNHUB_API_KEY no configurada');
+      const url = `https://finnhub.io/api/v1/quote?symbol=VOO&token=${FINNHUB_KEY}`;
       const data = await fetchJSON(url);
-      const q = Array.isArray(data) ? data[0] : null;
-      if (!q || !q.price) throw new Error('FMP no devolvió precio de VOO');
+      // Finnhub devuelve: { c: precio actual, dp: % cambio, h: max día, l: min día, o: apertura, pc: cierre anterior }
+      if (!data || data.c == null || data.c === 0) throw new Error('Finnhub no devolvió precio de VOO: ' + JSON.stringify(data).slice(0, 200));
       return {
         statusCode: 200,
         headers: corsHeaders,
         body: JSON.stringify({
-          price:  q.price,
-          change: q.changesPercentage,
-          high52: q.yearHigh,
-          low52:  q.yearLow
+          price:  data.c,    // current price
+          change: data.dp,   // % change
+          high:   data.h,    // high of day
+          low:    data.l,    // low of day
+          prev:   data.pc    // previous close
+        })
+      };
+    }
+
+    // ── ORO PRECIO ACTUAL (gold-api.com) ─────────────────────────────
+    // gold-api.com: gratis con key, devuelve precio spot en USD/oz
+    if (type === 'gold_price') {
+      if (!GOLD_KEY) throw new Error('GOLD_API_KEY no configurada');
+      const data = await fetchJSON('https://gold-api.com/price/XAU', {
+        'x-access-token': GOLD_KEY
+      });
+      // Respuesta: { price: 2350.50, currency: "USD", ... }
+      if (!data || !data.price) throw new Error('gold-api.com no devolvió precio: ' + JSON.stringify(data).slice(0, 200));
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          price: data.price,
+          currency: data.currency || 'USD'
         })
       };
     }
@@ -104,7 +132,6 @@ exports.handler = async (event) => {
       const days = data?.Data?.Data;
       if (!days || days.length === 0) throw new Error('CryptoCompare no devolvió datos históricos');
       const result = {};
-      // Los datos vienen en orden cronológico — guardamos el último precio de cada diciembre
       days.forEach(d => {
         const date = new Date(d.time * 1000);
         if (date.getMonth() === 11) { // 11 = diciembre
@@ -115,6 +142,7 @@ exports.handler = async (event) => {
     }
 
     // ── ORO HISTÓRICO (FreeGoldAPI) ───────────────────────────────────
+    // Sin key, data anual desde 1970, CORS habilitado
     if (type === 'gold_history') {
       const data = await fetchJSON('https://freegoldapi.com/data/latest.json');
       if (!Array.isArray(data)) throw new Error('FreeGoldAPI no devolvió array');
@@ -128,20 +156,33 @@ exports.handler = async (event) => {
 
     // ── TODOS LOS DATOS DE UNA (para cargar la web en 1 round-trip) ──
     if (type === 'all') {
-      const [cpiRes, vooRes, btcRes, goldRes] = await Promise.allSettled([
+      const [cpiRes, vooRes, btcRes, goldHistRes, goldPriceRes] = await Promise.allSettled([
+
+        // CPI histórico (FRED)
         FRED_KEY
           ? fetchJSON(`https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&observation_start=1948-01-01&frequency=a&aggregation_method=avg&api_key=${FRED_KEY}&file_type=json`)
           : Promise.reject(new Error('FRED_API_KEY no configurada')),
-        FMP_KEY
-          ? fetchJSON(`https://financialmodelingprep.com/api/v3/quote/VOO?apikey=${FMP_KEY}`)
-          : Promise.reject(new Error('FMP_API_KEY no configurada')),
+
+        // VOO precio actual (Finnhub) — reemplaza FMP
+        FINNHUB_KEY
+          ? fetchJSON(`https://finnhub.io/api/v1/quote?symbol=VOO&token=${FINNHUB_KEY}`)
+          : Promise.reject(new Error('FINNHUB_API_KEY no configurada')),
+
+        // BTC histórico (CryptoCompare)
         CRYPTO_KEY
           ? fetchJSON(`https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000&toTs=${Math.floor(Date.now() / 1000)}`, { Authorization: `Apikey ${CRYPTO_KEY}` })
           : Promise.reject(new Error('CRYPTOCOMPARE_API_KEY no configurada')),
-        fetchJSON('https://freegoldapi.com/data/latest.json').catch(e => null),
+
+        // Oro histórico (FreeGoldAPI, sin key)
+        fetchJSON('https://freegoldapi.com/data/latest.json').catch(() => null),
+
+        // Oro precio actual (gold-api.com)
+        GOLD_KEY
+          ? fetchJSON('https://gold-api.com/price/XAU', { 'x-access-token': GOLD_KEY })
+          : Promise.reject(new Error('GOLD_API_KEY no configurada')),
       ]);
 
-      // CPI
+      // ── CPI
       const cpi = {};
       let cpiError = null;
       if (cpiRes.status === 'fulfilled' && cpiRes.value?.observations) {
@@ -155,17 +196,20 @@ exports.handler = async (event) => {
         console.error('CPI fetch failed:', cpiError);
       }
 
-      // VOO
+      // ── VOO (Finnhub)
       let voo = null;
       if (vooRes.status === 'fulfilled') {
-        const q = Array.isArray(vooRes.value) ? vooRes.value[0] : null;
-        if (q?.price) voo = { price: q.price, change: q.changesPercentage };
-        else console.error('VOO: respuesta inesperada de FMP');
+        const d = vooRes.value;
+        if (d?.c && d.c > 0) {
+          voo = { price: d.c, change: d.dp, prev: d.pc };
+        } else {
+          console.error('VOO: respuesta inesperada de Finnhub', JSON.stringify(d).slice(0, 200));
+        }
       } else {
         console.error('VOO fetch failed:', vooRes.reason?.message);
       }
 
-      // BTC histórico diciembre por año
+      // ── BTC histórico diciembre por año
       const btc = {};
       if (btcRes.status === 'fulfilled') {
         const days = btcRes.value?.Data?.Data || [];
@@ -179,17 +223,27 @@ exports.handler = async (event) => {
         console.error('BTC fetch failed:', btcRes.reason?.message);
       }
 
-      // Oro histórico
+      // ── Oro histórico
       const gold = {};
-      if (goldRes.status === 'fulfilled' && Array.isArray(goldRes.value)) {
-        goldRes.value.forEach(d => {
+      if (goldHistRes.status === 'fulfilled' && Array.isArray(goldHistRes.value)) {
+        goldHistRes.value.forEach(d => {
           const yr = parseInt(d.date?.slice(0, 4));
           if (yr >= 1970 && d.price > 0) gold[yr] = Math.round(d.price);
         });
+      } else {
+        console.error('Gold history fetch failed:', goldHistRes.reason?.message);
+      }
+
+      // ── Oro precio actual
+      let goldPrice = null;
+      if (goldPriceRes.status === 'fulfilled' && goldPriceRes.value?.price) {
+        goldPrice = goldPriceRes.value.price;
+      } else {
+        console.error('Gold price fetch failed:', goldPriceRes.reason?.message);
       }
 
       // Si CPI falló (dato crítico), indicarlo en la respuesta
-      const response = { cpi, voo, btc, gold };
+      const response = { cpi, voo, btc, gold, goldPrice };
       if (cpiError) response.cpiError = cpiError;
 
       return {
