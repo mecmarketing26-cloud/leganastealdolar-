@@ -746,7 +746,7 @@ function showSec(id,btn){
 let curCPI   = 320.2;
 let curInfl  = 2.8;
 let crypto   = {};
-const API    = '/api/market-data';
+const API    = '/.netlify/functions/market-data';
 
 /* Muestra un spinner de carga en los stats del hero */
 function setLoadingState() {
@@ -760,7 +760,16 @@ function setLoadingState() {
 async function loadAllData() {
   setLoadingState();
   try {
-    const r = await fetch(`${API}?type=all`);
+    // Intentar primero con el redirect /api/, luego con la URL directa
+  let r;
+  try {
+    r = await fetch(`${API}?type=all`);
+    if (!r.ok || r.headers.get('content-type')?.includes('text/html')) {
+      throw new Error('redirect failed');
+    }
+  } catch(e) {
+    r = await fetch(`/.netlify/functions/market-data?type=all`);
+  }
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
 
@@ -850,9 +859,10 @@ function setTick(a,b,c,d,val,chg){
   if(!val) return;
   const p = val >= 1000 ? '$' + fmtN(val) : '$' + val.toFixed(2);
   $(a).textContent = p; $(b).textContent = p;
-  if (chg === undefined) return;
-  const cls = chg >= 0 ? 'cup' : 'cdn';
-  const t   = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+  if (chg == null) return;  // null o undefined
+  const chgN = parseFloat(chg) || 0;
+  const cls = chgN >= 0 ? 'cup' : 'cdn';
+  const t   = (chgN >= 0 ? '+' : '') + chgN.toFixed(2) + '%';
   $(c).textContent = t; $(c).className = cls;
   $(d).textContent = t; $(d).className = cls;
 }
