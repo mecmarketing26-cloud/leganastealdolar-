@@ -26,7 +26,21 @@ exports.handler = async (event) => {
     'Cache-Control': 'public, max-age=3600'
   };
 
-  const type = event.queryStringParameters?.type;
+  // Netlify puede pasar params de distintas maneras — leemos todas
+  const params = event.queryStringParameters || {};
+  let type = params.type || null;
+  if (!type && event.rawQuery) {
+    try { type = new URLSearchParams(event.rawQuery).get('type'); } catch(e) {}
+  }
+  if (!type && event.rawUrl) {
+    try { type = new URL(event.rawUrl).searchParams.get('type'); } catch(e) {}
+  }
+
+  // Debug logs — visibles en Netlify Functions log
+  console.log('rawQuery:', event.rawQuery);
+  console.log('queryStringParameters:', JSON.stringify(params));
+  console.log('resolved type:', type);
+  console.log('keys present — FRED:', !!process.env.FRED_API_KEY, 'FMP:', !!process.env.FMP_API_KEY, 'CRYPTO:', !!process.env.CRYPTOCOMPARE_API_KEY);
 
   try {
 
