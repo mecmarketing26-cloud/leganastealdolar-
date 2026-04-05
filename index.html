@@ -349,6 +349,39 @@ table.dtbl { width:100%;border-collapse:collapse;font-size:12px; }
 /* CONFETTI */
 #cvs { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999; }
 
+/* ── MODAL ── */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:flex-end;justify-content:center;padding:0;}
+.modal-ov.on{display:flex;animation:fadeInOv .2s ease both;}
+@keyframes fadeInOv{from{opacity:0}to{opacity:1}}
+@media(min-width:501px){.modal-ov{align-items:center;padding:20px;}}
+.modal-box{background:#fff;border-radius:16px 16px 0 0;padding:22px 20px 36px;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;position:relative;animation:slideUp .25s cubic-bezier(.16,1,.3,1) both;}
+@media(min-width:501px){.modal-box{border-radius:14px;}}
+@keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+.modal-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px;}
+.modal-ttl{font-size:16px;font-weight:800;line-height:1.2;}
+.modal-cls{background:#f3f4f6;border:none;width:30px;height:30px;border-radius:50%;font-size:14px;cursor:pointer;color:var(--ink2);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.modal-cls:hover{background:var(--border);}
+
+/* ── AFFILIATE CTA CARD ── */
+.aff-cta{background:linear-gradient(135deg,#0f172a 0%,#1e3b5f 100%);border-radius:12px;padding:18px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;text-decoration:none;}
+.aff-cta-ico{font-size:28px;flex-shrink:0;}
+.aff-cta-body{flex:1;min-width:0;}
+.aff-cta-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:5px;}
+.aff-cta-ttl{font-size:15px;font-weight:800;color:#fff;line-height:1.25;margin-bottom:4px;}
+.aff-cta-sub{font-size:12px;color:#94a3b8;line-height:1.45;}
+.aff-cta-btn{flex-shrink:0;background:#16a34a;color:#fff;font-size:12px;font-weight:700;padding:10px 14px;border-radius:8px;white-space:nowrap;line-height:1;text-align:center;}
+
+/* ── ACTION BUTTONS ROW ── */
+.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.btn-action{flex:1;min-width:130px;padding:11px 10px;font-family:inherit;font-size:12px;font-weight:700;background:var(--card);color:var(--ink);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;text-align:center;white-space:nowrap;}
+.btn-action:hover{border-color:var(--ink);background:#fafafa;}
+
+/* ── INFO TOOLTIP ── */
+.info-btn{background:none;border:none;color:var(--ink2);font-size:12px;cursor:pointer;padding:0 2px;vertical-align:middle;opacity:.55;font-family:inherit;}
+.info-btn:hover{opacity:1;}
+.tipbox{display:none;position:absolute;z-index:200;background:#111;color:#fff;font-size:12px;line-height:1.5;padding:10px 13px;border-radius:8px;max-width:240px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.25);}
+.tipbox::before{content:'';position:absolute;top:-5px;left:14px;width:10px;height:10px;background:#111;transform:rotate(45deg);}
+
 /* ERROR BANNER */
 #apiErrorBanner { display:none;background:#fee2e2;border:1.5px solid #fca5a5;border-radius:var(--radius);padding:14px 18px;margin:0 auto 16px;max-width:720px;font-size:13px;font-weight:600;color:var(--red);line-height:1.5; }
 #apiErrorBanner button { margin-left:10px;background:none;border:none;color:var(--red);font-size:13px;font-weight:700;cursor:pointer;text-decoration:underline;font-family:inherit; }
@@ -496,111 +529,61 @@ footer { border-top:1px solid var(--border);padding:18px 20px;max-width:720px;ma
         <div id="psychBadge" style="margin-top:10px"></div>
       </div>
 
-      <!-- 3 stats -->
+      <!-- 3 stats — labels simplificados para no-financieros -->
       <div class="stat-row">
-        <div class="stat-cell"><div class="stat-val ca" id="sNom">—</div><div class="stat-lbl">Ganancia nominal</div></div>
-        <div class="stat-cell"><div class="stat-val cr" id="sInf">—</div><div class="stat-lbl">Inflación acumulada</div></div>
-        <div class="stat-cell"><div class="stat-val"   id="sReal">—</div><div class="stat-lbl">Ganancia real</div></div>
+        <div class="stat-cell">
+          <div class="stat-val ca" id="sNom">—</div>
+          <div class="stat-lbl">
+            Subió en números
+            <button class="info-btn" onclick="showTip(this,'Cuánto subió el precio de tu inversión en dólares, sin descontar la inflación.')">ⓘ</button>
+          </div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val cr" id="sInf">—</div>
+          <div class="stat-lbl">
+            Subieron los precios
+            <button class="info-btn" onclick="showTip(this,'Cuánto subieron los precios en EE.UU. durante ese período (inflación del dólar). Fuente: Reserva Federal.')">ⓘ</button>
+          </div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val" id="sReal">—</div>
+          <div class="stat-lbl">
+            Ganaste DE VERDAD
+            <button class="info-btn" onclick="showTip(this,'Lo que realmente ganaste descontando la inflación. Si es negativo, tu dinero perdió poder de compra aunque el número nominal haya subido.')">ⓘ</button>
+          </div>
+        </div>
       </div>
 
       <!-- Barras -->
       <div class="card" id="barsCard" style="padding:18px"></div>
 
-      <!-- ── COMPARACIÓN ── -->
-      <div class="card cmp-section" style="padding:20px">
-        <div class="cmp-title-row">
-          <span style="font-size:20px">📊</span>
-          <div>
-            <div class="cmp-title">¿Y si hubieras invertido en otra cosa?</div>
-          </div>
+      <!-- ── AFFILIATE CTA — se llena con showAffiliateCTA() ── -->
+      <a id="affCTA" class="aff-cta" href="#" target="_blank" rel="noopener noreferrer" style="display:none">
+        <div class="aff-cta-ico" id="affCTAIco"></div>
+        <div class="aff-cta-body">
+          <div class="aff-cta-tag">💡 Próximo paso</div>
+          <div class="aff-cta-ttl" id="affCTATtl"></div>
+          <div class="aff-cta-sub" id="affCTASub"></div>
         </div>
-        <p class="cmp-subtitle">Seleccioná una o más alternativas para comparar con tu inversión en el mismo período.</p>
-        <div class="cmp-grid" id="cmpGrid"></div>
-        <button class="btn" style="margin-top:14px" onclick="runComparison()">Comparar →</button>
+        <div class="aff-cta-btn" id="affCTABtn"></div>
+      </a>
 
-        <div class="cmp-result-wrap" id="cmpResult">
-          <div class="cmp-table-outer">
-            <table class="cmp-tbl">
-              <thead>
-                <tr>
-                  <th>Inversión</th>
-                  <th>Retorno nominal</th>
-                  <th>Retorno real</th>
-                  <th>Datos</th>
-                  <th>Perfil de riesgo</th>
-                  <th>Dónde hacerlo</th>
-                </tr>
-              </thead>
-              <tbody id="cmpTbody"></tbody>
-            </table>
-          </div>
-          <div class="card" style="padding:16px;background:var(--blue-lt);border-color:var(--blue-bd)">
-            <p style="font-size:13px;color:#1e3a5f;line-height:1.65" id="cmpInsight"></p>
-          </div>
-          <p style="font-size:11px;color:var(--ink2);margin-top:8px;margin-bottom:2px;line-height:1.6">
-            📌 <b>Fuentes:</b> S&P 500: Shiller/Macrotrends (precio sin dividendos) · Oro: World Bank Pink Sheet / FreeGoldAPI · BTC: CoinGecko/CoinMarketCap · Inflación: BLS/FRED.
-            Los retornos de BTC y VOO son de precio — el ETF S&P 500 con dividendos reinvertidos agrega ~+2pp anuales.
-            Retornos pasados no garantizan resultados futuros.
-          </p>
-
-          <!-- Afiliados contextuales post-comparación -->
-          <div id="cmpAff"></div>
-        </div>
+      <!-- ── 3 BOTONES → MODALES ── -->
+      <div class="action-row">
+        <button class="btn-action" onclick="openModalCmp()">📊 Comparar con otras inversiones</button>
+        <button class="btn-action" onclick="openModalDetalle()">📋 Ver desglose año a año</button>
+        <button class="btn-action" onclick="openModalSim()">📅 Simular aportes mensuales</button>
       </div>
 
-      <!-- Botón análisis avanzado -->
-      <div class="adv-toggle">
-        <button class="btn-sm" id="advBtn" onclick="toggleAdv()">Ver análisis detallado ↓</button>
-      </div>
-
-      <div class="adv-panel" id="advPanel">
-        <div class="card" style="padding:16px">
-          <div class="sub-lbl" style="margin-top:0">Poder de compra</div>
-          <p style="font-size:13px;color:var(--ink2);line-height:1.65" id="poderTxt"></p>
+      <!-- ── DATOS OCULTOS para los modales (no se muestran inline) ── -->
+      <div style="display:none">
+        <div id="cmpGrid"></div>
+        <div id="cmpResult"><div id="cmpTbody"></div><div id="cmpInsight"></div><div id="cmpAff"></div></div>
+        <div id="poderTxt"></div>
+        <tbody id="yearTbody"></tbody>
+        <div id="simResults">
+          <span id="simTotal"></span><span id="simNominal"></span><span id="simReal"></span>
         </div>
-        <div class="sub-lbl">Desglose año a año</div>
-        <div class="tbl-wrap">
-          <div class="tbl-scroll">
-            <table class="dtbl">
-              <thead><tr><th>Año</th><th>Nominal</th><th>Inflación acum.</th><th>Valor real</th><th>Resultado</th></tr></thead>
-              <tbody id="yearTbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <p class="note">* Valor real = poder de compra en dólares de hoy. Fórmula de Fisher.</p>
-      </div>
-
-      <!-- ── SIMULADOR DE APORTES ── -->
-      <div class="card" id="aportesSimCard" style="display:none;margin-top:0;border-top:none;border-radius:0 0 var(--radius) var(--radius)">
-        <div style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px">
-          <span style="font-size:18px">📅</span> ¿Y si hubieras aportado mensualmente?
-        </div>
-        <p style="font-size:13px;color:var(--ink2);margin-bottom:16px;line-height:1.6">
-          No se trata de lo que hiciste, sino de ver el potencial de aportar regularmente. Cambiá el monto y mirá cómo impacta.
-        </p>
-        <div class="f2">
-          <div class="field">
-            <label>Aporte mensual (USD)</label>
-            <input type="number" id="simMonthly" value="200" min="0" oninput="runAportesSim()">
-          </div>
-          <div class="field">
-            <label>Estrategia</label>
-            <div class="sel-wrap">
-              <select id="simStrategy" onchange="runAportesSim()">
-                <option value="sp500">ETF S&P 500 (VOO)</option>
-                <option value="btc">Bitcoin</option>
-                <option value="oro">Oro</option>
-                <option value="colchon">Dólar guardado</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="stat-row" id="simResults" style="margin-bottom:0">
-          <div class="stat-cell"><div class="stat-val" id="simTotal">—</div><div class="stat-lbl">Total invertido</div></div>
-          <div class="stat-cell"><div class="stat-val" id="simNominal">—</div><div class="stat-lbl">Valor nominal final</div></div>
-          <div class="stat-cell"><div class="stat-val" id="simReal">—</div><div class="stat-lbl">Valor real (hoy)</div></div>
-        </div>
-        <p class="note" style="margin-top:8px">Este cálculo asume un aporte constante desde el año de inicio. Es una estimación — los precios reales de cada mes varían.</p>
       </div>
 
     </div><!-- /resWrap -->
@@ -608,7 +591,9 @@ footer { border-top:1px solid var(--border);padding:18px 20px;max-width:720px;ma
 
   <!-- ══════════ PLATAFORMAS ══════════ -->
   <div class="sec" id="sec-plat">
-    <p style="font-size:14px;color:var(--ink2);margin-bottom:18px;line-height:1.6">Precios en tiempo real. Compará antes de operar.</p>
+    <p style="font-size:14px;color:var(--ink2);margin-bottom:18px;line-height:1.6">
+      Las mejores plataformas para empezar a invertir desde Latinoamérica. Precios en tiempo real.
+    </p>
     <div id="platList"><div style="text-align:center;padding:40px;color:var(--ink2);font-size:13px"><span class="pulse">Cargando datos…</span></div></div>
   </div>
 
@@ -649,6 +634,107 @@ footer { border-top:1px solid var(--border);padding:18px 20px;max-width:720px;ma
   <div class="footer-brand">¿Le ganaste al dólar?</div>
   <div class="footer-note">Datos: FRED/BLS · CoinGecko · No es asesoramiento financiero.</div>
 </footer>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Comparar con otras inversiones
+══════════════════════════════════════════ -->
+<div id="modalCmp" class="modal-ov" onclick="if(event.target===this)closeModal('modalCmp')">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl">📊 ¿Y si hubieras invertido en otra cosa?</div>
+      <button class="modal-cls" onclick="closeModal('modalCmp')">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink2);margin-bottom:16px;line-height:1.5">
+      Seleccioná una o más alternativas para ver cómo les fue en el mismo período que tu inversión.
+    </p>
+    <div class="cmp-grid" id="cmpGridM" style="margin-bottom:14px"></div>
+    <button class="btn" onclick="runComparisonModal()">Comparar →</button>
+    <div id="cmpResultM" style="display:none;margin-top:16px">
+      <div class="cmp-table-outer">
+        <table class="cmp-tbl">
+          <thead><tr>
+            <th>Inversión</th><th>Subió en números</th><th>Ganó DE VERDAD</th><th>Perfil</th><th>Dónde hacerlo</th>
+          </tr></thead>
+          <tbody id="cmpTbodyM"></tbody>
+        </table>
+      </div>
+      <div style="background:var(--blue-lt);border:1px solid var(--blue-bd);border-radius:8px;padding:14px;margin-top:12px">
+        <p style="font-size:13px;color:#1e3a5f;line-height:1.6" id="cmpInsightM"></p>
+      </div>
+      <p style="font-size:11px;color:var(--ink2);margin-top:10px;line-height:1.5">
+        Retornos históricos de precio. S&P 500 con dividendos reinvertidos agrega ~+2% anual. Los retornos pasados no garantizan resultados futuros.
+      </p>
+      <div id="cmpAffM" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Desglose año a año
+══════════════════════════════════════════ -->
+<div id="modalDetalle" class="modal-ov" onclick="if(event.target===this)closeModal('modalDetalle')">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl">📋 Desglose año a año</div>
+      <button class="modal-cls" onclick="closeModal('modalDetalle')">✕</button>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px">
+      <p style="font-size:13px;color:var(--ink2);line-height:1.6" id="poderTxtM"></p>
+    </div>
+    <div class="tbl-wrap">
+      <div class="tbl-scroll">
+        <table class="dtbl">
+          <thead><tr>
+            <th>Año</th><th>Valor nominal</th><th>Inflación acum.</th><th>Valor real (hoy)</th><th>¿Ganó?</th>
+          </tr></thead>
+          <tbody id="yearTbodyM"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note" style="margin-top:8px">Valor real = cuánto valdría hoy tu dinero de ese año en poder de compra. Fórmula de Fisher.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Simulador de aportes mensuales
+══════════════════════════════════════════ -->
+<div id="modalSim" class="modal-ov" onclick="if(event.target===this)closeModal('modalSim')">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl">📅 ¿Y si aportabas todos los meses?</div>
+      <button class="modal-cls" onclick="closeModal('modalSim')">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink2);margin-bottom:16px;line-height:1.5">
+      Cuánto habrías acumulado si además de la inversión inicial hacías aportes regulares.
+    </p>
+    <div class="f2">
+      <div class="field">
+        <label>Aporte mensual (USD)</label>
+        <input type="number" id="simMonthly" value="200" min="0" oninput="runAportesSim()">
+      </div>
+      <div class="field">
+        <label>En qué activo</label>
+        <div class="sel-wrap">
+          <select id="simStrategy" onchange="runAportesSim()">
+            <option value="sp500">ETF S&P 500 (VOO)</option>
+            <option value="btc">Bitcoin</option>
+            <option value="oro">Oro</option>
+            <option value="colchon">Dólar guardado</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="stat-row" style="margin-bottom:0">
+      <div class="stat-cell"><div class="stat-val" id="simTotal">—</div><div class="stat-lbl">Total aportado</div></div>
+      <div class="stat-cell"><div class="stat-val ca" id="simNominal">—</div><div class="stat-lbl">Valor final</div></div>
+      <div class="stat-cell"><div class="stat-val" id="simReal">—</div><div class="stat-lbl">Valor real (hoy)</div></div>
+    </div>
+    <p class="note" style="margin-top:10px">Estimación basada en precios históricos anuales. Los precios mensuales reales varían.</p>
+  </div>
+</div>
+
+<!-- Tooltip flotante -->
+<div id="tipBox" class="tipbox"></div>
 
 <script>
 /* ══════════════════════════════════════════════════════════════════
@@ -877,15 +963,16 @@ function updateVooTicker(price, chg) {
 /* Precios en tiempo real de CoinGecko — CORS abierto, sin key */
 async function fetchCryptoLive() {
   try {
-    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,gold&vs_currencies=usd&include_24hr_change=true');
+    // pax-gold (PAXG) = 1 token respaldado por 1 oz troy de oro físico → precio en USD/oz
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,pax-gold&vs_currencies=usd&include_24hr_change=true');
     if (!r.ok) throw new Error('CoinGecko HTTP ' + r.status);
     const d = await r.json();
     crypto.btc  = d.bitcoin?.usd  ?? null;
     crypto.btcC = d.bitcoin?.usd_24h_change ?? null;
     crypto.eth  = d.ethereum?.usd ?? null;
     crypto.ethC = d.ethereum?.usd_24h_change ?? null;
-    crypto.gold = d.gold?.usd     ?? null;
-    crypto.goldC= d.gold?.usd_24h_change ?? null;
+    crypto.gold = d['pax-gold']?.usd      ?? null;   // USD por oz troy
+    crypto.goldC= d['pax-gold']?.usd_24h_change ?? null;
     // Actualizar precio actual en PRICE_HISTORY para cálculos
     if (crypto.gold) {
       PRICE_HISTORY.oro[2025] = Math.round(crypto.gold);
@@ -916,6 +1003,129 @@ function setTick(a,b,c,d,val,chg){
   const t   = (chgN >= 0 ? '+' : '') + chgN.toFixed(2) + '%';
   $(c).textContent = t; $(c).className = cls;
   $(d).textContent = t; $(d).className = cls;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODAL SYSTEM
+══════════════════════════════════════════════════════════════ */
+function openModal(id) {
+  document.querySelectorAll('.modal-ov').forEach(m => m.classList.remove('on'));
+  const el = $(id);
+  if (el) { el.classList.add('on'); document.body.style.overflow='hidden'; }
+}
+function closeModal(id) {
+  if (id) $(id)?.classList.remove('on');
+  else document.querySelectorAll('.modal-ov').forEach(m => m.classList.remove('on'));
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function openModalCmp()     { buildCmpGridModal(); openModal('modalCmp'); }
+function openModalDetalle() { buildDetalleModal(); openModal('modalDetalle'); }
+function openModalSim() {
+  if (calcState?.currentType && ['sp500','btc','oro','colchon'].includes(calcState.currentType)) {
+    const simStrat = $('simStrategy');
+    if (simStrat) simStrat.value = calcState.currentType;
+  }
+  runAportesSim();
+  openModal('modalSim');
+}
+
+function buildCmpGridModal() {
+  const grid = $('cmpGridM');
+  if (!grid || !calcState.currentType) return;
+  // Reusar buildCmpGrid pero en el modal
+  const opts = CMP_OPTIONS.filter(o => o.id !== calcState.currentType);
+  grid.innerHTML = opts.map(o=>`
+    <div class="cmp-card" id="cmpCardM-${o.id}" onclick="toggleCmpM('${o.id}',this)">
+      <div class="cmp-card-check" id="cmpCheckM-${o.id}">✓</div>
+      <span class="cmp-ico">${o.ico}</span>
+      <div class="cmp-name">${o.name}</div>
+      <div class="cmp-ret" style="font-size:11px;color:var(--ink2)">${o.ret}</div>
+    </div>`).join('');
+  selectedCmpM = new Set();
+  $('cmpResultM').style.display = 'none';
+}
+
+function buildDetalleModal() {
+  const tbM = $('yearTbodyM');
+  const pTxt = $('poderTxtM');
+  if (tbM) tbM.innerHTML = $('yearTbody')?.innerHTML || '';
+  if (pTxt) pTxt.textContent = $('poderTxt')?.textContent || '';
+}
+
+let selectedCmpM = new Set();
+function toggleCmpM(id, el) {
+  if (selectedCmpM.has(id)) { selectedCmpM.delete(id); el.classList.remove('selected'); }
+  else { selectedCmpM.add(id); el.classList.add('selected'); }
+}
+
+/* ── INFO TOOLTIP ── */
+let tipTimeout;
+function showTip(btn, text) {
+  const box = $('tipBox');
+  if (!box) return;
+  clearTimeout(tipTimeout);
+  box.textContent = text;
+  const rect = btn.getBoundingClientRect();
+  box.style.display = 'block';
+  box.style.top  = (rect.bottom + window.scrollY + 8) + 'px';
+  box.style.left = Math.max(8, Math.min(rect.left + window.scrollX - 10,
+    window.innerWidth - 260)) + 'px';
+  tipTimeout = setTimeout(() => { box.style.display = 'none'; }, 4000);
+}
+document.addEventListener('click', e => {
+  if (!e.target.classList.contains('info-btn')) $('tipBox') && ($('tipBox').style.display = 'none');
+});
+
+/* ══════════════════════════════════════════════════════════════
+   AFFILIATE CTA — recomendación contextual post-resultado
+══════════════════════════════════════════════════════════════ */
+const AFF_DATA = {
+  btc: {
+    won:  { ico:'🚀', ttl:'Seguí acumulando Bitcoin',             sub:'Lemon Cash: la forma más simple de comprar BTC desde Argentina desde $1.', link:'TU_LINK_LEMON', btn:'Abrir cuenta en Lemon →' },
+    lost: { ico:'📈', ttl:'Diversificá con el S&P 500',           sub:'Bitcoin es muy volátil. El ETF VOO tiene menor riesgo y creció +10.7%/año históricamente.', link:'TU_LINK_RIPIO', btn:'Ver cómo invertir en VOO →' },
+  },
+  sp500: {
+    won:  { ico:'📈', ttl:'Seguí invirtiendo en el S&P 500',      sub:'Ripio te permite comprar el ETF VOO desde Argentina y Latinoamérica.', link:'TU_LINK_RIPIO', btn:'Comprar más VOO →' },
+    lost: { ico:'💡', ttl:'El S&P 500 siempre se recuperó',       sub:'En el largo plazo, siempre volvió a máximos. La clave es no vender en las caídas.', link:'TU_LINK_RIPIO', btn:'Seguir acumulando →' },
+  },
+  oro: {
+    won:  { ico:'🪙', ttl:'El oro cumplió. ¿Querés más rendimiento?', sub:'En Binance podés ganar 5–8% APY en USDT mientras mantenés tu reserva en oro.', link:'TU_LINK_BINANCE', btn:'Ver opciones en Binance →' },
+    lost: { ico:'📊', ttl:'Combiná oro con acciones',              sub:'El S&P 500 + oro juntos dan mejores resultados que cada uno solo.', link:'TU_LINK_RIPIO', btn:'Empezar con S&P 500 →' },
+  },
+  colchon: {
+    won:  { ico:'💵', ttl:'Tu dólar puede rendir más',            sub:'Guardás en efectivo pero podés ganar 5–8% APY en USDT sin riesgo de mercado. Lemon Cash lo hace fácil.', link:'TU_LINK_LEMON', btn:'Ganar interés en Lemon →' },
+    lost: { ico:'⚠️', ttl:'El dólar guardado pierde contra la inflación', sub:'Es el resultado más común. Movés tu plata a USDT Earn y ya la inflación no te come.', link:'TU_LINK_LEMON', btn:'Empezar en Lemon Cash →' },
+  },
+  plazo_fijo: {
+    won:  { ico:'🏦', ttl:'¿Buscás mejor tasa en USD?',           sub:'Wise ofrece hasta 4.5% anual en tu cuenta USD con IBAN. Sin comisiones de apertura.', link:'TU_LINK_WISE', btn:'Abrir cuenta Wise →' },
+    lost: { ico:'💡', ttl:'Tu plazo fijo no le ganó a la inflación', sub:'Es el resultado más frecuente. Wise y Lemon Cash tienen opciones con mejores tasas en dólares.', link:'TU_LINK_WISE', btn:'Ver Wise →' },
+  },
+  inmueble: {
+    won:  { ico:'🏠', ttl:'Buen movimiento. Diversificá la próxima',  sub:'El S&P 500 históricamente creció más que los inmuebles y es más líquido. Podés combinar ambos.', link:'TU_LINK_RIPIO', btn:'Ver ETF S&P 500 →' },
+    lost: { ico:'📊', ttl:'Los inmuebles no siempre ganan en dólares', sub:'El ETF VOO creció +10.7% anual desde 1993 con mayor liquidez. Vale la pena diversificar.', link:'TU_LINK_RIPIO', btn:'Conocer el VOO →' },
+  },
+  vehiculo: {
+    won:  { ico:'🚗', ttl:'Tus ahorros pueden rendir más',         sub:'Los autos rara vez son buena inversión. Con ese dinero en el S&P 500 el resultado es distinto.', link:'TU_LINK_LEMON', btn:'Ver opciones →' },
+    lost: { ico:'📉', ttl:'Los autos se deprecian',               sub:'Es esperable — los vehículos pierden valor. Pero ese dinero en USDT o ETF habría rendido distinto.', link:'TU_LINK_LEMON', btn:'Empezar a invertir →' },
+  },
+  otro: {
+    won:  { ico:'💡', ttl:'¿Querés diversificar?',                sub:'Bitcoin, S&P 500 y stablecoins con rendimiento son las opciones más populares en Latinoamérica.', link:'TU_LINK_LEMON', btn:'Ver opciones →' },
+    lost: { ico:'💡', ttl:'¿Buscás mejor rendimiento?',           sub:'El S&P 500 históricamente le ganó a la inflación del dólar en el largo plazo.', link:'TU_LINK_RIPIO', btn:'Ver S&P 500 →' },
+  },
+};
+
+function showAffiliateCTA(type, won) {
+  const card = $('affCTA');
+  if (!card) return;
+  const data = (AFF_DATA[type] || AFF_DATA.otro)[won ? 'won' : 'lost'];
+  $('affCTAIco').textContent   = data.ico;
+  $('affCTATtl').textContent   = data.ttl;
+  $('affCTASub').textContent   = data.sub;
+  $('affCTABtn').textContent   = data.btn;
+  card.href = data.link;
+  card.style.display = 'flex';
 }
 
 /* ── COMPARISON OPTIONS ── */
@@ -969,30 +1179,29 @@ function renderStep2(type) {
     ? `<div class="live-tag"><span class="live-dot"></span>Precio actual: ${livePrice}</div>`
     : '';
 
+  /* helper: toggle de aportes mensuales */
+  const monthlyToggle = `
+    <div style="margin-top:14px">
+      <div onclick="toggleMonthly(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+        <div class="toggle-switch" id="monthlySwitch" style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0">
+          <div style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+        </div>
+        <span style="font-size:13px;font-weight:600;color:var(--ink2)">¿Sumabas algo cada mes? <span style="font-weight:400">(opcional)</span></span>
+      </div>
+      <div id="monthlyFields" style="display:none;margin-top:10px">
+        <div class="field"><label>Aporte mensual (USD)</label><input type="number" id="monthlyAmt" value="100" min="0"></div>
+      </div>
+    </div>`;
+
   const configs = {
     colchon: {
-      title: '¿Cuánto guardaste y en qué período?',
+      title: '¿Cuánto guardaste y desde cuándo?',
       fields: `
         <div class="f2">
           <div class="field"><label>Año en que empezaste</label><input type="number" id="yearBuy" value="2015" min="1948" max="2025"></div>
-          <div class="field"><label>Monto inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="5000" min="0"></div>
+          <div class="field"><label>Cuánto guardaste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="5000" min="0"></div>
         </div>
-        
-        <div class="monthly-toggle-wrap" style="margin-top:14px">
-          <div class="toggle-row" onclick="toggleMonthly(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
-            <div class="toggle-switch" id="monthlySwitch" style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0">
-              <div style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
-            </div>
-            <span style="font-size:13px;font-weight:600;color:var(--ink2)">¿Hacías aportes mensuales? <span style="font-weight:400;color:var(--ink2)">(opcional)</span></span>
-          </div>
-          <div id="monthlyFields" style="display:none;margin-top:12px">
-            <div class="field">
-              <label>Aporte mensual (USD)</label>
-              <input type="number" id="monthlyAmt" value="100" min="0">
-              <p class="hint">Promedio de lo que aportabas cada mes. Se suma al cálculo total.</p>
-            </div>
-          </div>
-        </div>`
+        ${monthlyToggle}`
     },
     sp500: {
       title: '¿Cuándo empezaste y cuánto pusiste?',
@@ -1000,91 +1209,37 @@ function renderStep2(type) {
         ${livePriceTag}
         <div class="f2">
           <div class="field"><label>Año de inicio</label><input type="number" id="yearBuy" value="2015" min="1990" max="2025"></div>
-          <div class="field"><label>Inversión inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
+          <div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
         </div>
-        <div class="hint" style="margin-top:2px;padding:8px 12px;background:#f0f4ff;border:1px solid #c7d5f5;border-radius:8px;color:#2a4080">
-          📊 Usamos el precio histórico del ETF VOO para calcular cuánto vale hoy tu inversión. Precio actual: <span id="vooPriceHint">cargando…</span>
-        </div>
-        <div class="field" style="margin-top:14px">
-          <label>¿Reinvertías los dividendos?</label>
+        <div class="field" style="margin-top:12px">
+          <label>¿Reinvertías los dividendos? <button class="info-btn" onclick="showTip(this,'Las empresas del S&P 500 pagan dividendos anuales. Si los reinvertís, comprás más acciones y tu ganancia crece más rápido. Históricamente suma ~2% extra por año.')">ⓘ</button></label>
           <div class="radio-group">
             <label class="radio-opt"><input type="radio" name="spDividends" value="no" checked><span>No</span></label>
-            <label class="radio-opt"><input type="radio" name="spDividends" value="si"><span>Sí (+~2% anual)</span></label>
+            <label class="radio-opt"><input type="radio" name="spDividends" value="si"><span>Sí (+~2% / año)</span></label>
           </div>
-          <p class="hint">Reinvertir dividendos históricamente agrega ~2% anual al retorno del S&P 500.</p>
         </div>
-        
-        <div class="monthly-toggle-wrap" style="margin-top:14px">
-          <div class="toggle-row" onclick="toggleMonthly(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
-            <div class="toggle-switch" id="monthlySwitch" style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0">
-              <div style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
-            </div>
-            <span style="font-size:13px;font-weight:600;color:var(--ink2)">¿Hacías aportes mensuales? <span style="font-weight:400;color:var(--ink2)">(opcional)</span></span>
-          </div>
-          <div id="monthlyFields" style="display:none;margin-top:12px">
-            <div class="field">
-              <label>Aporte mensual (USD)</label>
-              <input type="number" id="monthlyAmt" value="100" min="0">
-              <p class="hint">Promedio de lo que aportabas cada mes. Se suma al cálculo total.</p>
-            </div>
-          </div>
-        </div>`
+        ${monthlyToggle}`
     },
     btc: {
-      title: '¿Cuándo empezaste y cuánto pusiste?',
+      title: '¿Cuándo compraste y cuánto pusiste?',
       fields: `
         ${livePriceTag}
         <div class="f2">
           <div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2018" min="2009" max="2025"></div>
-          <div class="field"><label>Inversión inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
+          <div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
         </div>
-        <div class="hint" style="margin-top:2px;padding:8px 12px;background:#fef9ec;border:1px solid var(--gold-bd);border-radius:8px;color:#7a5800">
-          ₿ Usamos el precio de BTC de ese año y el precio actual en vivo para calcular tu retorno.
-        </div>
-        
-        <div class="monthly-toggle-wrap" style="margin-top:14px">
-          <div class="toggle-row" onclick="toggleMonthly(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
-            <div class="toggle-switch" id="monthlySwitch" style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0">
-              <div style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
-            </div>
-            <span style="font-size:13px;font-weight:600;color:var(--ink2)">¿Hacías aportes mensuales? <span style="font-weight:400;color:var(--ink2)">(opcional)</span></span>
-          </div>
-          <div id="monthlyFields" style="display:none;margin-top:12px">
-            <div class="field">
-              <label>Aporte mensual (USD)</label>
-              <input type="number" id="monthlyAmt" value="100" min="0">
-              <p class="hint">Promedio de lo que aportabas cada mes. Se suma al cálculo total.</p>
-            </div>
-          </div>
-        </div>`
+        ${monthlyToggle}`
     },
     oro: {
-      title: '¿Cuándo empezaste y cuánto pusiste?',
+      title: '¿Cuándo compraste y cuánto pusiste?',
       fields: `
         ${livePriceTag}
         <div class="f2">
           <div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2015" min="1971" max="2025"></div>
-          <div class="field"><label>Inversión inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
+          <div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
         </div>
-        <div class="hint" style="margin-top:2px;padding:8px 12px;background:#f9f9f0;border:1px solid #e8d899;border-radius:8px;color:#7a6200">
-          🪙 Usamos el precio histórico del oro de ese año para calcular cuánto valen tus onzas hoy.
-        </div>
-        
-        <div class="monthly-toggle-wrap" style="margin-top:14px">
-          <div class="toggle-row" onclick="toggleMonthly(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
-            <div class="toggle-switch" id="monthlySwitch" style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0">
-              <div style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
-            </div>
-            <span style="font-size:13px;font-weight:600;color:var(--ink2)">¿Hacías aportes mensuales? <span style="font-weight:400;color:var(--ink2)">(opcional)</span></span>
-          </div>
-          <div id="monthlyFields" style="display:none;margin-top:12px">
-            <div class="field">
-              <label>Aporte mensual (USD)</label>
-              <input type="number" id="monthlyAmt" value="100" min="0">
-              <p class="hint">Promedio de lo que aportabas cada mes. Se suma al cálculo total.</p>
-            </div>
-          </div>
-        </div>`
+        <p style="font-size:12px;color:var(--ink2);margin-top:8px">El precio del oro se expresa en dólares por onza troy (oz). Calculamos cuántas onzas compraste y cuánto valen hoy.</p>
+        ${monthlyToggle}`
     },
     inmueble: {
       title: '¿Cuánto pagaste y cuánto vale hoy?',
@@ -1093,10 +1248,8 @@ function renderStep2(type) {
           <div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2010" min="1948" max="2025"></div>
           <div class="field"><label>Precio de compra (USD)</label><input type="number" id="amtStart" autocomplete="off" value="80000" min="1"></div>
         </div>
-        <div class="field"><label>Valor actual estimado (USD)</label><input type="number" id="amtNow" autocomplete="off" value="140000" min="0"><p class="hint">El precio al que podrías vender la propiedad hoy.</p></div>
-        <div class="hint" style="margin-top:10px;padding:10px 12px;background:#f0f4ff;border:1px solid #c7d5f5;border-radius:8px;color:#2a4080">
-          ℹ️ Este cálculo mide solo la variación del valor del inmueble en dólares. No incluye ingresos por alquiler ni gastos (expensas, impuestos, mantenimiento).
-        </div>`
+        <div class="field"><label>¿Cuánto vale hoy? (USD)</label><input type="number" id="amtNow" autocomplete="off" value="140000" min="0"><p class="hint">El precio al que lo venderías hoy.</p></div>
+        <p style="font-size:12px;color:var(--ink2);margin-top:8px">Solo se mide la variación del precio en dólares, sin alquileres ni gastos.</p>`
     },
     vehiculo: {
       title: '¿Cuánto pagaste y cuánto vale hoy?',
@@ -1105,10 +1258,7 @@ function renderStep2(type) {
           <div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2018" min="1990" max="2025"></div>
           <div class="field"><label>Precio de compra (USD)</label><input type="number" id="amtStart" autocomplete="off" value="15000" min="1"></div>
         </div>
-        <div class="field"><label>Valor actual estimado (USD)</label><input type="number" id="amtNow" autocomplete="off" value="8000" min="0"><p class="hint">El precio al que podrías venderlo hoy. Podés buscarlo en MercadoLibre o Kavak.</p></div>
-        <div class="hint" style="margin-top:10px;padding:10px 12px;background:#fef9ec;border:1px solid var(--gold-bd);border-radius:8px;color:#7a5800">
-          ℹ️ Este cálculo mide solo la variación del valor del vehículo en dólares. No incluye gastos de patente, seguro, nafta ni mantenimiento.
-        </div>`
+        <div class="field"><label>¿Cuánto vale hoy? (USD)</label><input type="number" id="amtNow" autocomplete="off" value="8000" min="0"><p class="hint">Lo que pedirías si lo vendieras hoy (podés buscar en MercadoLibre).</p></div>`
     },
     plazo_fijo: {
       title: '¿Cuánto pusiste y a qué tasa?',
@@ -1118,8 +1268,8 @@ function renderStep2(type) {
           <div class="field"><label>Capital inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
         </div>
         <div class="f2">
-          <div class="field"><label>Tasa anual promedio (%)</label><input type="number" id="plazoTasa" value="3" min="0" max="100" step="0.1"><p class="hint">Promedio de la tasa que recibiste en USD.</p></div>
-          <div class="field"><label>Valor actual (USD)</label><input type="number" id="amtNow" autocomplete="off" value="" min="0" placeholder="O lo calculamos →"><p class="hint">Si lo tenés exacto, ponelo. Si no, lo calculamos.</p></div>
+          <div class="field"><label>Tasa anual (%)</label><input type="number" id="plazoTasa" value="3" min="0" max="100" step="0.1"></div>
+          <div class="field"><label>Valor actual (USD) <span style="font-weight:400;color:var(--ink2)">(opcional)</span></label><input type="number" id="amtNow" autocomplete="off" value="" min="0" placeholder="Lo calculamos →"></div>
         </div>`
     },
     otro: {
@@ -1129,7 +1279,7 @@ function renderStep2(type) {
           <div class="field"><label>Año de inicio</label><input type="number" id="yearBuy" value="2015" min="1948" max="2025"></div>
           <div class="field"><label>Monto inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div>
         </div>
-        <div class="field"><label>Valor actual (USD)</label><input type="number" id="amtNow" autocomplete="off" value="18000" min="0"></div>`
+        <div class="field"><label>¿Cuánto vale hoy? (USD)</label><input type="number" id="amtNow" autocomplete="off" value="18000" min="0"></div>`
     },
   };
 
@@ -1330,6 +1480,123 @@ function runComparison(){
 
   $('cmpResult').classList.add('on');
   setTimeout(()=>$('cmpResult').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+/* ── RUN COMPARISON (modal version) ── */
+function runComparisonModal(){
+  if(selectedCmpM.size===0){ alert('Seleccioná al menos una alternativa para comparar.'); return; }
+
+  const { amtStart, years, nomG, inflAcum, realG, currentType } = calcState;
+  const rows = [];
+
+  rows.push({
+    name: getTypeName(currentType),
+    ico:  getTypeIco(currentType),
+    nomG: nomG*100,
+    realG: realG*100,
+    psych: PSYCH[currentType]||PSYCH.otro,
+    link: '', linkName:'',
+    isYours: true,
+  });
+
+  const yearBuy  = calcState.yearBuy;
+  const cpiStart = getCPI(yearBuy) || getCPI(2000);
+  if (!cpiStart || curCPI == null) { alert('Datos de inflación no disponibles.'); return; }
+  const inflAcumFactor = curCPI / cpiStart;
+
+  selectedCmpM.forEach(id=>{
+    const opt = CMP_OPTIONS.find(o=>o.id===id);
+    let finalNomG, dataNote = '';
+
+    if (id === 'colchon') {
+      finalNomG = 0;
+      dataNote = '0% nominal';
+    } else if (PRICE_HISTORY[id] && Object.keys(PRICE_HISTORY[id]).length > 0) {
+      const prices = PRICE_HISTORY[id];
+      const priceYears = Object.keys(prices).map(Number);
+      const startYr = Math.max(yearBuy, Math.min(...priceYears));
+      const endYr   = Math.min(2025,    Math.max(...priceYears));
+      const pStart  = prices[startYr];
+      const pEnd    = prices[endYr];
+      if (!pStart || !pEnd) {
+        finalNomG = 0; dataNote = 'sin datos';
+      } else {
+        finalNomG = (pEnd / pStart) - 1;
+        dataNote  = `${startYr}→${endYr}`;
+      }
+    } else {
+      const annRate  = ANNUAL_RETURNS[id] || 0.03;
+      const finalNom = amtStart * Math.pow(1 + annRate, years);
+      finalNomG = (finalNom / amtStart) - 1;
+      dataNote  = `~${(annRate*100).toFixed(0)}% anual`;
+    }
+
+    const finalRealG = ((1 + finalNomG) / inflAcumFactor) - 1;
+    rows.push({
+      name: opt.name, ico: opt.ico,
+      nomG: finalNomG * 100, realG: finalRealG * 100,
+      note: dataNote,
+      psych: PSYCH_CMP[id] || { badge:'calm', text:'—' },
+      link: opt.link, linkName: opt.linkName,
+      isYours: false,
+    });
+  });
+
+  rows.sort((a,b)=>b.realG-a.realG);
+
+  let tb='';
+  rows.forEach(r=>{
+    const realCls = r.realG>=0?'cg':'cr';
+    const nomCls  = r.nomG>=0?'ca':'cr';
+    const psychBadge = `<span class="tag-pill ${r.psych.badge==='calm'?'tp-green':r.psych.badge==='stress'?'tp-gold':'tp-red'}">${r.psych.text}</span>`;
+    const linkCell = r.link
+      ? `<a href="${r.link}" class="tag-pill tp-blue" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${r.linkName} →</a>`
+      : `<span class="tag-pill tp-gray">—</span>`;
+    const rowClass = r.isYours ? 'highlight-row' : '';
+    const noteCell = r.note ? `<span style="font-size:11px;color:var(--ink2)">${r.note}</span>` : `<span style="font-size:11px;color:var(--ink2)">promedio hist.</span>`;
+    tb+=`<tr class="${rowClass}">
+      <td><b>${r.ico} ${r.name}</b>${r.isYours?' <span class="tag-pill tp-gray" style="font-size:9px">tu inversión</span>':''}</td>
+      <td class="${nomCls}"><b>${fmtPct(r.nomG)}</b></td>
+      <td class="${realCls}"><b>${fmtPct(r.realG)}</b></td>
+      <td>${noteCell}</td>
+      <td>${psychBadge}</td>
+      <td>${linkCell}</td>
+    </tr>`;
+  });
+  $('cmpTbodyM').innerHTML=tb;
+
+  const best = rows[0];
+  const yours = rows.find(r=>r.isYours);
+  const yoursRank = rows.indexOf(yours)+1;
+  let insight='';
+  if(yoursRank===1){
+    insight=`✅ Tu inversión fue la mejor de las comparadas en este período en términos de retorno real.`;
+  } else {
+    const betterCount = yoursRank-1;
+    insight=`📊 En este período, ${betterCount} alternativa${betterCount>1?'s':''} hubiera${betterCount>1?'n':''} tenido mejor retorno real que ${getTypeName(currentType)}. El activo con mayor retorno estimado habría sido <b>${best.ico} ${best.name}</b> con un ${fmtPct(best.realG)} real. Los retornos pasados no garantizan resultados futuros.`;
+  }
+  $('cmpInsightM').innerHTML=insight;
+
+  const affItems=[];
+  selectedCmpM.forEach(id=>{
+    const opt=CMP_OPTIONS.find(o=>o.id===id);
+    if(opt.link){
+      const descs={sp500:'Comprá el ETF VOO (S&P 500) desde Latinoamérica.',btc:'Comprá Bitcoin de forma simple y segura.',oro:'Operar oro como activo digital.',usdt:'Guardá USDT y ganá hasta 8% APY.',plazo:'Cuenta USD con IBAN y rendimiento anual.'};
+      affItems.push({name:opt.linkName, desc:descs[id]||'', link:opt.link});
+    }
+  });
+  const seen=new Set();
+  const uniqueAff=affItems.filter(a=>{ if(seen.has(a.name))return false; seen.add(a.name);return true; });
+  $('cmpAffM').innerHTML = uniqueAff.length ? `
+    <div class="aff-lbl" style="margin-top:14px">Dónde empezar con estas inversiones</div>
+    ${uniqueAff.map(a=>`
+      <div class="aff-item">
+        <div><div class="aff-name">${a.name}</div><div class="aff-desc">${a.desc}</div></div>
+        <a href="${a.link}" class="aff-btn" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Abrir →</a>
+      </div>`).join('')}` : '';
+
+  $('cmpResultM').style.display='block';
+  setTimeout(()=>$('cmpResultM').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
 }
 
 function getTypeName(tp){
@@ -1607,7 +1874,7 @@ function calcular(){
   $('sReal').className   = 'stat-val ' + (pReal >= 0 ? 'cg' : 'cr');
 
   buildBars(nomG * 100, (inflAcumFactor - 1) * 100, pReal);
-  buildCmpGrid(tp);
+  showAffiliateCTA(tp, realG >= 0);
 
   $('poderTxt').textContent = tp === 'colchon'
     ? `Aportaste un total de ${fmtUSD(amtStart)} en dólares desde ${yr}. Ese dinero, ajustado por la inflación acumulada del ${((inflAcumFactor-1)*100).toFixed(1)}%, equivale a ${fmtUSD(Math.round(amtStart / inflAcumFactor))} en poder de compra de ${yr}.`
@@ -1635,15 +1902,6 @@ function calcular(){
   $('yearTbody').innerHTML = tb;
 
   $('resWrap').classList.add('on');
-
-  // Mostrar simulador de aportes y pre-seleccionar la estrategia actual
-  const simCard = $('aportesSimCard');
-  if (simCard) {
-    simCard.style.display = 'block';
-    const simStrat = $('simStrategy');
-    if (simStrat && ['sp500','btc','oro','colchon'].includes(tp)) simStrat.value = tp;
-    runAportesSim();
-  }
 
   setTimeout(() => $('resWrap').scrollIntoView({ behavior:'smooth', block:'start' }), 100);
 }
@@ -1732,41 +1990,44 @@ function toggleAdv(){
 
 /* ── PLATFORMS ── */
 function buildPlat(){
-  const btc = crypto.btc, eth = crypto.eth;
-  if (!btc || !eth) {
-    // Si aún no cargaron los precios, mostrar placeholder
-    const platList = $('platList');
-    if (platList && !platList.innerHTML) {
-      platList.innerHTML = '<p style="text-align:center;color:var(--ink2);padding:20px;font-size:13px">Cargando precios en tiempo real…</p>';
-    }
-    return;
-  }
-  const f=n=>'$'+fmtN(n);
-  const plats=[
-    {name:'Lemon Cash',type:'Exchange · Argentina',link:'TU_LINK_LEMON',
-     rows:[{l:'BTC',v:f(Math.round(btc*1.012)),n:'+1.2%'},{l:'ETH',v:f(Math.round(eth*1.012))},{l:'USDT APY',v:'4–6%',best:true},{l:'Retiro USD',v:'Sí'}]},
-    {name:'Binance',type:'Exchange · Global',link:'TU_LINK_BINANCE',
-     rows:[{l:'BTC',v:f(btc),n:'~0% maker',best:true},{l:'ETH',v:f(eth)},{l:'USDT APY',v:'5–8%',best:true},{l:'Retiro',v:'P2P / SWIFT'}]},
-    {name:'Ripio',type:'Exchange · ARG, Brasil',link:'TU_LINK_RIPIO',
-     rows:[{l:'BTC',v:f(Math.round(btc*1.015)),n:'+1.5%'},{l:'ETH',v:f(Math.round(eth*1.015))},{l:'USDT APY',v:'3–5%'},{l:'Retiro',v:'Wise / wire'}]},
-    {name:'Wise',type:'Cuenta multidivisa',link:'TU_LINK_WISE',
-     rows:[{l:'Cuenta USD',v:'IBAN + routing'},{l:'Interés USD',v:'~4.5%',best:true},{l:'Tarjeta',v:'Física + virtual'},{l:'Comisión',v:'Muy baja'}]},
-    {name:'Bitso',type:'Exchange · MX, ARG',link:'TU_LINK_BITSO',
-     rows:[{l:'BTC',v:f(Math.round(btc*1.01)),n:'+1.0%'},{l:'ETH',v:f(Math.round(eth*1.01))},{l:'USDT APY',v:'3%'},{l:'Retiro',v:'SPEI / banco'}]},
-    {name:'Belo',type:'Fintech cripto · ARG',link:'TU_LINK_BELO',
-     rows:[{l:'BTC',v:f(Math.round(btc*1.018)),n:'+1.8%'},{l:'ETH',v:f(Math.round(eth*1.018))},{l:'USDT APY',v:'4%'},{l:'Retiro',v:'CVU + cripto'}]},
+  const platList = $('platList');
+  if (!platList) return;
+  const plats = [
+    {
+      ico: '₿',
+      name: 'Lemon Cash',
+      tag: 'Cripto · Argentina',
+      desc: 'Comprá Bitcoin, Ethereum y más. Tarjeta cripto, retiro en USD.',
+      link: 'TU_LINK_LEMON',
+      btn: 'Abrir cuenta gratis →',
+    },
+    {
+      ico: '📈',
+      name: 'Ripio',
+      tag: 'ETF S&P 500 · ARG, Brasil',
+      desc: 'Invertí en el S&P 500 desde Latinoamérica. Sin cuenta en el exterior.',
+      link: 'TU_LINK_RIPIO',
+      btn: 'Empezar a invertir →',
+    },
+    {
+      ico: '💵',
+      name: 'Wise',
+      tag: 'Cuenta USD · Global',
+      desc: 'Cuenta en dólares con IBAN, tarjeta y ~4.5% de interés anual en USD.',
+      link: 'TU_LINK_WISE',
+      btn: 'Abrir cuenta USD →',
+    },
   ];
-  $('platList').innerHTML=plats.map(p=>`
-    <div class="plat-card">
-      <div class="plat-top"><div><div class="plat-name">${p.name}</div><div class="plat-type">${p.type}</div></div></div>
-      <div class="plat-rows">
-        ${p.rows.map(r=>`<div class="plat-row">
-          <span class="plat-rl">${r.l}</span>
-          <span class="plat-rv">${r.v}${r.best?'<span class="badge">mejor</span>':''}${r.n?`<span style="font-size:11px;color:var(--ink2);font-weight:500">${r.n}</span>`:''}</span>
-        </div>`).join('')}
+  platList.innerHTML = plats.map(p => `
+    <a href="${p.link}" class="aff-cta" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" style="display:flex;text-decoration:none">
+      <div class="aff-cta-ico">${p.ico}</div>
+      <div class="aff-cta-body">
+        <div class="aff-cta-tag">${p.tag}</div>
+        <div class="aff-cta-ttl">${p.name}</div>
+        <div class="aff-cta-sub">${p.desc}</div>
+        <div class="aff-cta-btn" style="margin-top:10px">${p.btn}</div>
       </div>
-      <a href="${p.link}" class="plat-cta" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Abrir cuenta →</a>
-    </div>`).join('');
+    </a>`).join('');
 }
 
 /* ── COMPOUND ── */
