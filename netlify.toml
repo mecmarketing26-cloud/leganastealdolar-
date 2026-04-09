@@ -1,10 +1,11 @@
 [build]
-  command = "npm run build"
+  command = "npm ci && node_modules/.bin/astro build"
   publish = "dist"
   functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "22.18.0"
+  NPM_CONFIG_PRODUCTION = "false"
 
 [functions]
   node_bundler = "nft"
