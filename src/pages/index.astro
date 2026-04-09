@@ -1,0 +1,813 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const schemaWebApp = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "¿Le Ganaste al Dólar?",
+  "url": "https://leganastealdolar.com/",
+  "description": "Calculadora gratuita que compara inversiones contra la inflación real del dólar. Disponible para Argentina y Latinoamérica.",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "inLanguage": "es",
+  "audience": { "@type": "Audience", "geographicArea": { "@type": "Place", "name": "Latinoamérica" } }
+};
+
+const schemaFAQ = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "¿Cómo sé si mi inversión le ganó a la inflación del dólar?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Ingresá el año de inicio, cuánto invertiste y cuánto vale hoy. La calculadora compara tu retorno nominal contra la inflación acumulada del dólar (CPI del BLS) usando la Fórmula de Fisher para obtener el retorno real en poder de compra." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Qué activos puedo comparar?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Podés comparar propiedades, Bitcoin, ETF S&P 500 (VOO), oro, dólar en el colchón, plazo fijo en dólares y vehículos. Todos se comparan contra la inflación real del dólar usando datos históricos del BLS y precios en tiempo real." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Es gratis esta herramienta?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Sí, es completamente gratuita. No requiere registro ni suscripción. Los datos de inflación provienen del BLS/FRED (Reserva Federal de EE.UU.) y los precios de criptomonedas de CoinGecko." }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Cómo se calcula la ganancia real?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Se usa la Fórmula de Fisher: ganancia real = ((1 + retorno nominal) / (1 + inflación acumulada)) - 1. Esto descuenta el efecto de la inflación del dólar para mostrar cuánto creció tu poder de compra real." }
+    }
+  ]
+};
+---
+<BaseLayout schemaMarkup={[schemaWebApp, schemaFAQ]}>
+
+<!-- HERO -->
+<section class="hero">
+  <h1>Tu plata contra<br>la inflación del <span class="acc">dólar</span></h1>
+  <p>¿Cuánto valió realmente tu ahorro? Calculá si le ganaste a la inflación del dólar con datos históricos del BLS.</p>
+  <div class="hero-stats">
+    <div class="hstat">
+      <div class="hstat-val cr" id="heroAcum"><span class="pulse">…</span></div>
+      <div class="hstat-lbl">Inflación USD<br>desde 1990</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val ca" id="heroAnual"><span class="pulse">…</span></div>
+      <div class="hstat-lbl">Inflación anual<br>actual</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val cg">+10.7%</div>
+      <div class="hstat-lbl">ETF S&amp;P 500 (VOO)<br>retorno hist. anual</div>
+    </div>
+  </div>
+</section>
+
+<!-- ÍNDICE DE DOLARIZACIÓN -->
+<div id="dolarIndex" class="dolar-index-widget" aria-label="Índice de dolarización">
+  <div class="di-left">
+    <div class="di-label">Índice de dolarización</div>
+    <div class="di-score" id="diScore">—</div>
+    <div class="di-date" id="diDate">Actualizando…</div>
+  </div>
+  <div class="di-right">
+    <div class="di-semaforo" id="diSemaforo">●</div>
+    <div class="di-verdict" id="diVerdict">Cargando…</div>
+    <div class="di-sub" id="diSub"></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-wrap">
+  <div class="tabs">
+    <button class="tab on" onclick="showSec('calc',this)">Mi inversión</button>
+    <button class="tab" onclick="showSec('plat',this)">Plataformas</button>
+    <button class="tab" onclick="showSec('comp',this)">Interés compuesto</button>
+  </div>
+</div>
+
+<div id="apiErrorBanner" role="alert" aria-live="assertive"></div>
+
+<main class="main" role="main" id="main-content">
+
+  <!-- CALCULADORA -->
+  <div class="sec on" id="sec-calc">
+
+    <div class="card" id="step1Card">
+      <div class="step-lbl"><div class="step-num">1</div><div class="step-title">¿Qué vas a analizar?</div></div>
+      <div class="asset-grid" id="assetGrid">
+        <button class="asset-btn" onclick="selectAsset('inmueble',this)"><span>🏠</span><span>Propiedad</span></button>
+        <button class="asset-btn" onclick="selectAsset('vehiculo',this)"><span>🚗</span><span>Vehículo</span></button>
+        <button class="asset-btn" onclick="selectAsset('colchon',this)"><span>💵</span><span>Dólar guardado</span></button>
+        <button class="asset-btn" onclick="selectAsset('plazo_fijo',this)"><span>🏦</span><span>Plazo fijo</span></button>
+        <button class="asset-btn" onclick="selectAsset('sp500',this)"><span>📈</span><span>ETF S&amp;P 500</span></button>
+        <button class="asset-btn" onclick="selectAsset('btc',this)"><span>₿</span><span>Bitcoin</span></button>
+        <button class="asset-btn" onclick="selectAsset('oro',this)"><span>🪙</span><span>Oro</span></button>
+        <button class="asset-btn" onclick="selectAsset('otro',this)"><span>📦</span><span>Otra cosa</span></button>
+      </div>
+    </div>
+
+    <div id="step2Wrap" style="display:none">
+      <div class="card" id="step2Card"></div>
+      <button class="btn" onclick="calcular()" aria-label="Calcular retorno real de tu inversión">Ver resultado →</button>
+    </div>
+
+    <!-- RESULTADO -->
+    <div class="res-wrap" id="resWrap">
+
+      <div class="verdict" id="verdict">
+        <span class="v-ico" id="vIco"></span>
+        <div class="v-num" id="vNum"></div>
+        <div class="v-msg" id="vMsg"></div>
+        <div id="psychBadge" style="margin-top:10px"></div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-cell">
+          <div class="stat-val ca" id="sNom">—</div>
+          <div class="stat-lbl">
+            Subió en números
+            <button class="info-btn" onclick="showTip(this,'Cuánto subió el precio de tu inversión en dólares, sin descontar la inflación.')">ⓘ</button>
+          </div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val cr" id="sInf">—</div>
+          <div class="stat-lbl">
+            Subieron los precios
+            <button class="info-btn" onclick="showTip(this,'Cuánto subieron los precios en EE.UU. durante ese período (inflación del dólar). Fuente: Reserva Federal.')">ⓘ</button>
+          </div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val" id="sReal">—</div>
+          <div class="stat-lbl">
+            Ganaste DE VERDAD
+            <button class="info-btn" onclick="showTip(this,'Lo que realmente ganaste descontando la inflación. Si es negativo, tu dinero perdió poder de compra aunque el número nominal haya subido.')">ⓘ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="barsCard" style="padding:18px"></div>
+
+      <a id="affCTA" class="aff-cta" href="#" target="_blank" rel="noopener noreferrer" style="display:none">
+        <div class="aff-cta-ico" id="affCTAIco"></div>
+        <div class="aff-cta-body">
+          <div class="aff-cta-tag">💡 Próximo paso</div>
+          <div class="aff-cta-ttl" id="affCTATtl"></div>
+          <div class="aff-cta-sub" id="affCTASub"></div>
+        </div>
+        <div class="aff-cta-btn" id="affCTABtn"></div>
+      </a>
+
+      <!-- SHARE BUTTONS -->
+      <div class="share-row">
+        <button class="btn-share" id="btnShare" onclick="shareResult()">Compartir mi resultado →</button>
+        <a id="btnTweet" href="#" target="_blank" rel="noopener" class="btn-tweet">Compartir en X</a>
+      </div>
+
+      <!-- 3 BOTONES → MODALES -->
+      <div class="action-row">
+        <button class="btn-action" onclick="openModalCmp()">📊 Comparar con otras inversiones</button>
+        <button class="btn-action" onclick="openModalDetalle()">📋 Ver desglose año a año</button>
+        <button class="btn-action" onclick="openModalSim()">📅 Simular aportes mensuales</button>
+      </div>
+
+      <!-- DATOS OCULTOS para los modales -->
+      <div style="display:none">
+        <div id="cmpGrid"></div>
+        <div id="cmpResult"><div id="cmpTbody"></div><div id="cmpInsight"></div><div id="cmpAff"></div></div>
+        <div id="poderTxt"></div>
+        <tbody id="yearTbody"></tbody>
+      </div>
+
+    </div><!-- /resWrap -->
+  </div><!-- /sec-calc -->
+
+  <!-- PLATAFORMAS -->
+  <div class="sec" id="sec-plat">
+    <p style="font-size:14px;color:var(--ink2);margin-bottom:18px;line-height:1.6">
+      Las mejores plataformas para empezar a invertir desde Latinoamérica.
+    </p>
+    <div id="platList"><div style="text-align:center;padding:40px;color:var(--ink2);font-size:13px"><span class="pulse">Cargando datos…</span></div></div>
+  </div>
+
+  <!-- INTERÉS COMPUESTO -->
+  <div class="sec" id="sec-comp">
+    <p style="font-size:14px;color:var(--ink2);margin-bottom:18px;line-height:1.6">Proyectá el crecimiento de tu capital descontando la inflación real del dólar.</p>
+    <div class="card">
+      <div class="f2">
+        <div class="field"><label>Capital inicial (USD)</label><input type="number" id="cCap" value="10000"></div>
+        <div class="field"><label>Aporte mensual (USD)</label><input type="number" id="cAporte" value="200"></div>
+      </div>
+      <div class="f2">
+        <div class="field"><label>Tasa anual (%)</label><input type="number" id="cTasa" value="8" step="0.1"></div>
+        <div class="field"><label>Años</label><input type="number" id="cAnios" value="20" min="1" max="50"></div>
+      </div>
+    </div>
+    <button class="btn" onclick="calcComp()">Proyectar →</button>
+    <div class="comp-res" id="compRes">
+      <div class="stat-row" style="margin-top:14px;margin-bottom:12px">
+        <div class="stat-cell"><div class="stat-val ca" id="cNom">—</div><div class="stat-lbl">Valor nominal</div></div>
+        <div class="stat-cell"><div class="stat-val" id="cReal">—</div><div class="stat-lbl">Valor real (hoy)</div></div>
+        <div class="stat-cell"><div class="stat-val" id="cGan">—</div><div class="stat-lbl">Ganancia real neta</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <div class="tbl-scroll">
+          <table class="dtbl">
+            <thead><tr><th>Año</th><th>Nominal</th><th>Inflación acum.</th><th>Real</th><th>vs. colchón</th></tr></thead>
+            <tbody id="compTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL: Comparar -->
+<div id="modalCmp" class="modal-ov" onclick="if(event.target===this)closeModal('modalCmp')">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl">📊 ¿Y si hubieras invertido en otra cosa?</div>
+      <button class="modal-cls" onclick="closeModal('modalCmp')">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink2);margin-bottom:16px;line-height:1.5">
+      Seleccioná una o más alternativas para ver cómo les fue en el mismo período que tu inversión.
+    </p>
+    <div class="cmp-grid" id="cmpGridM" style="margin-bottom:14px"></div>
+    <button class="btn" onclick="runComparisonModal()">Comparar →</button>
+    <div id="cmpResultM" style="display:none;margin-top:16px">
+      <div class="cmp-table-outer">
+        <table class="cmp-tbl">
+          <thead><tr>
+            <th>Inversión</th><th>Subió en números</th><th>Ganó DE VERDAD</th><th>Perfil</th><th>Dónde hacerlo</th>
+          </tr></thead>
+          <tbody id="cmpTbodyM"></tbody>
+        </table>
+      </div>
+      <div style="background:var(--blue-lt);border:1px solid var(--blue-bd);border-radius:8px;padding:14px;margin-top:12px">
+        <p style="font-size:13px;color:#1e3a5f;line-height:1.6" id="cmpInsightM"></p>
+      </div>
+      <p style="font-size:11px;color:var(--ink2);margin-top:10px;line-height:1.5">Los retornos pasados no garantizan resultados futuros.</p>
+      <div id="cmpAffM" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Desglose año a año -->
+<div id="modalDetalle" class="modal-ov" onclick="if(event.target===this)closeModal('modalDetalle')">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl">📋 Desglose año a año</div>
+      <button class="modal-cls" onclick="closeModal('modalDetalle')">✕</button>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px">
+      <p style="font-size:13px;color:var(--ink2);line-height:1.6" id="poderTxtM"></p>
+    </div>
+    <div class="tbl-wrap">
+      <div class="tbl-scroll">
+        <table class="dtbl">
+          <thead><tr><th>Año</th><th>Valor nominal</th><th>Inflación acum.</th><th>Valor real (hoy)</th><th>¿Ganó?</th></tr></thead>
+          <tbody id="yearTbodyM"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note" style="margin-top:8px">Valor real = cuánto valdría hoy tu dinero de ese año en poder de compra. Fórmula de Fisher.</p>
+  </div>
+</div>
+
+<!-- MODAL: Simulador -->
+<div id="modalSim" class="modal-ov" onclick="if(event.target===this)closeModal('modalSim')">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl">📅 ¿Y si aportabas todos los meses?</div>
+      <button class="modal-cls" onclick="closeModal('modalSim')">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink2);margin-bottom:16px;line-height:1.5">Cuánto habrías acumulado si además de la inversión inicial hacías aportes regulares.</p>
+    <div class="f2">
+      <div class="field">
+        <label>Aporte mensual (USD)</label>
+        <input type="number" id="simMonthly" value="200" min="0" oninput="runAportesSim()">
+      </div>
+      <div class="field">
+        <label>En qué activo</label>
+        <div class="sel-wrap">
+          <select id="simStrategy" onchange="runAportesSim()">
+            <option value="sp500">ETF S&amp;P 500 (VOO)</option>
+            <option value="btc">Bitcoin</option>
+            <option value="oro">Oro</option>
+            <option value="colchon">Dólar guardado</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="stat-row" style="margin-bottom:0">
+      <div class="stat-cell"><div class="stat-val" id="simTotal">—</div><div class="stat-lbl">Total aportado</div></div>
+      <div class="stat-cell"><div class="stat-val ca" id="simNominal">—</div><div class="stat-lbl">Valor final</div></div>
+      <div class="stat-cell"><div class="stat-val" id="simReal">—</div><div class="stat-lbl">Valor real (hoy)</div></div>
+    </div>
+    <p class="note" style="margin-top:10px">Estimación basada en precios históricos anuales.</p>
+  </div>
+</div>
+
+<!-- Tooltip flotante -->
+<div id="tipBox" class="tipbox"></div>
+
+<script is:inline>
+/* DATA */
+let CPI = {}, PRICE_HISTORY = { sp500:{}, oro:{}, btc:{} };
+const apiStatus = { cpi:false, sp500:false, btc:false, oro:false, voo:false };
+
+function interpolar(obj,yr){
+  if(obj[yr])return obj[yr];
+  const years=Object.keys(obj).map(Number).sort((a,b)=>a-b);
+  const antes=years.filter(y=>y<=yr).pop(), despues=years.filter(y=>y>=yr).shift();
+  if(!antes)return obj[despues]; if(!despues)return obj[antes];
+  const t=(yr-antes)/(despues-antes);
+  return Math.round(obj[antes]+t*(obj[despues]-obj[antes]));
+}
+function getCPI(yr){return CPI[yr]||interpolar(CPI,yr);}
+function getSP(yr){return PRICE_HISTORY.sp500[yr]||interpolar(PRICE_HISTORY.sp500,yr);}
+function getOro(yr){return PRICE_HISTORY.oro[yr]||interpolar(PRICE_HISTORY.oro,yr);}
+function getBTC(yr){return PRICE_HISTORY.btc[yr]||interpolar(PRICE_HISTORY.btc,yr);}
+
+const ANNUAL_RETURNS={usdt:0.05,plazo:0.03,colchon:0.0};
+let calcState={}, selectedCmp=new Set();
+const $=id=>document.getElementById(id);
+
+function sanitize(s){return typeof s!=='string'?'':s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+const fmtN=(n,d=0)=>n.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const fmtUSD=n=>'$'+fmtN(Math.abs(n));
+const fmtPct=(n,d=1)=>(n>=0?'+':'')+fmtN(n,d)+'%';
+
+function showSec(id,btn){
+  document.querySelectorAll('.sec').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('on'));
+  $('sec-'+id).classList.add('on'); btn.classList.add('on');
+  if(id==='plat')buildPlat();
+}
+
+let curCPI=null, curInfl=null, crypto={};
+const API='/.netlify/functions/market-data';
+
+function setLoadingState(){['heroAcum','heroAnual'].forEach(id=>{const el=$(id);if(el)el.innerHTML='<span class="pulse">…</span>';});}
+function showApiError(msg){const b=$('apiErrorBanner');if(!b)return;b.innerHTML=`⚠️ Error al cargar datos: ${sanitize(msg)}. <button onclick="location.reload()">Reintentar</button>`;b.style.display='block';}
+function showHeroError(){['heroAcum','heroAnual'].forEach(id=>{const el=$(id);if(el)el.innerHTML='<span style="color:var(--red);font-size:13px">Sin datos</span>';});}
+
+async function loadAllData(){
+  setLoadingState();
+  let d=null,fetchError=null;
+  try{
+    const r=await fetch(`${API}?type=all`);
+    const ct=r.headers.get('content-type')||'';
+    if(ct.includes('text/html'))throw new Error('La función devolvió HTML — verificá el deploy');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    d=await r.json();
+  }catch(e){fetchError=e.message;console.error('loadAllData error:',e.message);}
+
+  if(!d){showApiError(fetchError||'No se pudo conectar con el servidor');showHeroError();await fetchCryptoLive();return;}
+  if(d.cpiError)console.error('CPI error:',d.cpiError);
+
+  if(d.cpi&&Object.keys(d.cpi).length>10){
+    Object.assign(CPI,d.cpi);apiStatus.cpi=true;
+    const years=Object.keys(CPI).map(Number),maxYr=Math.max(...years);
+    curCPI=CPI[maxYr];
+    const prevYr=maxYr-1;if(CPI[prevYr])curInfl=((CPI[maxYr]/CPI[prevYr])-1)*100;
+  }else{showApiError('Inflación CPI: '+(d.cpiError||'FRED no devolvió datos'));showHeroError();}
+
+  if(d.voo?.price){window._vooPrice=d.voo.price;apiStatus.voo=true;updateVooTicker(d.voo.price,d.voo.change||0);}
+  else{$('tVoo')&&($('tVoo').textContent='Sin datos');$('tVoo2')&&($('tVoo2').textContent='Sin datos');}
+
+  if(d.btc&&Object.keys(d.btc).length>5){Object.assign(PRICE_HISTORY.btc,d.btc);apiStatus.btc=true;}
+  if(d.gold&&Object.keys(d.gold).length>5){Object.assign(PRICE_HISTORY.oro,d.gold);apiStatus.oro=true;}
+
+  try{
+    const rSp=await fetch(`${API}?type=sp500`);
+    if(rSp.ok&&(rSp.headers.get('content-type')||'').includes('application/json')){
+      const sp=await rSp.json();
+      if(sp&&Object.keys(sp).length>5){Object.assign(PRICE_HISTORY.sp500,sp);apiStatus.sp500=true;}
+    }
+  }catch(e){console.warn('SP500 histórico no disponible:',e.message);}
+
+  updateInflationUI();
+  updateDolarizationIndex();
+  await fetchCryptoLive();
+  autoCalculateFromURL();
+}
+
+function updateInflationUI(){
+  if(curInfl==null||curCPI==null)return;
+  const pct=curInfl.toFixed(1)+'%';
+  $('tCpi')&&($('tCpi').textContent=pct);$('tCpi2')&&($('tCpi2').textContent=pct);
+  $('heroAnual')&&($('heroAnual').textContent=pct);
+  const cpi1990=getCPI(1990);
+  if(cpi1990)$('heroAcum')&&($('heroAcum').textContent='+'+(((curCPI/cpi1990)-1)*100).toFixed(0)+'%');
+}
+
+function updateVooTicker(price,chg){
+  const fmt='$'+fmtN(Math.round(price*100)/100,2);
+  $('tVoo')&&($('tVoo').textContent=fmt);$('tVoo2')&&($('tVoo2').textContent=fmt);
+  const cls=chg>=0?'cup':'cdn',txt=(chg>=0?'+':'')+chg.toFixed(2)+'%';
+  $('tVooC')&&($('tVooC').textContent=txt,$('tVooC').className=cls);
+  $('tVooC2')&&($('tVooC2').textContent=txt,$('tVooC2').className=cls);
+}
+
+async function fetchCryptoLive(){
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,pax-gold&vs_currencies=usd&include_24hr_change=true');
+    if(!r.ok)throw new Error('CoinGecko HTTP '+r.status);
+    const d=await r.json();
+    crypto.btc=d.bitcoin?.usd??null;crypto.btcC=d.bitcoin?.usd_24h_change??null;
+    crypto.eth=d.ethereum?.usd??null;crypto.ethC=d.ethereum?.usd_24h_change??null;
+    crypto.gold=d['pax-gold']?.usd??null;crypto.goldC=d['pax-gold']?.usd_24h_change??null;
+    if(crypto.gold){PRICE_HISTORY.oro[2025]=Math.round(crypto.gold);PRICE_HISTORY.oro[2026]=Math.round(crypto.gold);apiStatus.oro=true;}
+    if(crypto.btc){PRICE_HISTORY.btc[2025]=Math.round(crypto.btc);PRICE_HISTORY.btc[2026]=Math.round(crypto.btc);}
+  }catch(e){console.warn('CoinGecko no disponible:',e.message);}
+  setTick('tBtc','tBtc2','tBtcC','tBtcC2',crypto.btc,crypto.btcC);
+  setTick('tEth','tEth2','tEthC','tEthC2',crypto.eth,crypto.ethC);
+  setTick('tGold','tGold2','tGoldC','tGoldC2',crypto.gold,crypto.goldC);
+  buildPlat();
+}
+
+function setTick(a,b,c,d,val,chg){
+  if(!val)return;
+  const p=val>=1000?'$'+fmtN(val):'$'+val.toFixed(2);
+  $(a).textContent=p;$(b).textContent=p;
+  if(chg==null)return;
+  const chgN=parseFloat(chg)||0,cls=chgN>=0?'cup':'cdn',t=(chgN>=0?'+':'')+chgN.toFixed(2)+'%';
+  $(c).textContent=t;$(c).className=cls;$(d).textContent=t;$(d).className=cls;
+}
+
+/* DOLARIZATION INDEX */
+function calcDolarizationIndex(inflRate,vooYTD){
+  const inflScore=Math.min((inflRate/6)*100,100);
+  const vooScore=vooYTD>0?Math.min((vooYTD/20)*100,100):0;
+  return Math.round((inflScore*0.5)+(vooScore*0.5));
+}
+function updateDolarizationIndex(){
+  const widget=$('dolarIndex');if(!widget)return;
+  if(curInfl==null){
+    $('diScore').textContent='—';$('diDate').textContent='Sin datos';
+    $('diSemaforo').textContent='●';$('diVerdict').textContent='Sin datos disponibles';$('diSub').textContent='';
+    widget.className='dolar-index-widget';return;
+  }
+  const score=calcDolarizationIndex(curInfl,window._vooYTD||0);
+  $('diScore').textContent=score;
+  $('diDate').textContent='Actualizado hoy · '+new Date().toLocaleDateString('es-AR',{day:'numeric',month:'long'});
+  if(score<35){widget.className='dolar-index-widget di-green';$('diSemaforo').textContent='🟢';$('diVerdict').textContent='Baja urgencia';$('diSub').textContent='El dólar no presiona tanto hoy';}
+  else if(score<=65){widget.className='dolar-index-widget di-yellow';$('diSemaforo').textContent='🟡';$('diVerdict').textContent='Momento moderado';$('diSub').textContent='Vale la pena evaluar opciones';}
+  else{widget.className='dolar-index-widget di-red';$('diSemaforo').textContent='🔴';$('diVerdict').textContent='Alta conveniencia';$('diSub').textContent='El contexto favorece dolarizarse';}
+}
+
+/* MODALS */
+function openModal(id){document.querySelectorAll('.modal-ov').forEach(m=>m.classList.remove('on'));const el=$(id);if(el){el.classList.add('on');document.body.style.overflow='hidden';}}
+function closeModal(id){if(id)$(id)?.classList.remove('on');else document.querySelectorAll('.modal-ov').forEach(m=>m.classList.remove('on'));document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+function openModalCmp(){buildCmpGridModal();openModal('modalCmp');}
+function openModalDetalle(){buildDetalleModal();openModal('modalDetalle');}
+function openModalSim(){
+  if(calcState?.currentType&&['sp500','btc','oro','colchon'].includes(calcState.currentType)){const s=$('simStrategy');if(s)s.value=calcState.currentType;}
+  runAportesSim();openModal('modalSim');
+}
+function buildCmpGridModal(){
+  const grid=$('cmpGridM');if(!grid||!calcState.currentType)return;
+  const opts=CMP_OPTIONS.filter(o=>o.id!==calcState.currentType);
+  grid.innerHTML=opts.map(o=>`<div class="cmp-card" id="cmpCardM-${o.id}" onclick="toggleCmpM('${o.id}',this)"><div class="cmp-card-check">✓</div><span class="cmp-ico">${o.ico}</span><div class="cmp-name">${o.name}</div><div class="cmp-ret" style="font-size:11px;color:var(--ink2)">${o.ret}</div></div>`).join('');
+  selectedCmpM=new Set();$('cmpResultM').style.display='none';
+}
+function buildDetalleModal(){
+  const tbM=$('yearTbodyM'),pTxt=$('poderTxtM');
+  if(tbM)tbM.innerHTML=$('yearTbody')?.innerHTML||'';
+  if(pTxt)pTxt.textContent=$('poderTxt')?.textContent||'';
+}
+let selectedCmpM=new Set();
+function toggleCmpM(id,el){if(selectedCmpM.has(id)){selectedCmpM.delete(id);el.classList.remove('selected');}else{selectedCmpM.add(id);el.classList.add('selected');}}
+
+/* TOOLTIP */
+let tipTimeout;
+function showTip(btn,text){
+  const box=$('tipBox');if(!box)return;clearTimeout(tipTimeout);
+  box.textContent=text;const rect=btn.getBoundingClientRect();
+  box.style.display='block';
+  box.style.top=(rect.bottom+window.scrollY+8)+'px';
+  box.style.left=Math.max(8,Math.min(rect.left+window.scrollX-10,window.innerWidth-260))+'px';
+  tipTimeout=setTimeout(()=>{box.style.display='none';},4000);
+}
+document.addEventListener('click',e=>{if(!e.target.classList.contains('info-btn'))$('tipBox')&&($('tipBox').style.display='none');});
+
+/* AFFILIATE CTA */
+const AFF_DATA={
+  btc:{won:{ico:'🚀',ttl:'Seguí acumulando Bitcoin',sub:'Lemon Cash: la forma más simple de comprar BTC desde Argentina desde $1.',link:'TU_LINK_LEMON',btn:'Abrir cuenta en Lemon →'},lost:{ico:'📈',ttl:'Diversificá con el S&P 500',sub:'Bitcoin es muy volátil. El ETF VOO tiene menor riesgo y creció +10.7%/año históricamente.',link:'TU_LINK_RIPIO',btn:'Ver cómo invertir en VOO →'}},
+  sp500:{won:{ico:'📈',ttl:'Seguí invirtiendo en el S&P 500',sub:'Ripio te permite comprar el ETF VOO desde Argentina y Latinoamérica.',link:'TU_LINK_RIPIO',btn:'Comprar más VOO →'},lost:{ico:'💡',ttl:'El S&P 500 siempre se recuperó',sub:'En el largo plazo, siempre volvió a máximos. La clave es no vender en las caídas.',link:'TU_LINK_RIPIO',btn:'Seguir acumulando →'}},
+  oro:{won:{ico:'🪙',ttl:'El oro cumplió. ¿Querés más rendimiento?',sub:'En Binance podés ganar 5–8% APY en USDT mientras mantenés tu reserva en oro.',link:'TU_LINK_BINANCE',btn:'Ver opciones en Binance →'},lost:{ico:'📊',ttl:'Combiná oro con acciones',sub:'El S&P 500 + oro juntos dan mejores resultados que cada uno solo.',link:'TU_LINK_RIPIO',btn:'Empezar con S&P 500 →'}},
+  colchon:{won:{ico:'💵',ttl:'Tu dólar puede rendir más',sub:'Guardás en efectivo pero podés ganar 5–8% APY en USDT sin riesgo de mercado.',link:'TU_LINK_LEMON',btn:'Ganar interés en Lemon →'},lost:{ico:'⚠️',ttl:'El dólar guardado pierde contra la inflación',sub:'Es el resultado más común. Movés tu plata a USDT Earn y ya la inflación no te come.',link:'TU_LINK_LEMON',btn:'Empezar en Lemon Cash →'}},
+  plazo_fijo:{won:{ico:'🏦',ttl:'¿Buscás mejor tasa en USD?',sub:'Wise ofrece hasta 4.5% anual en tu cuenta USD con IBAN.',link:'TU_LINK_WISE',btn:'Abrir cuenta Wise →'},lost:{ico:'💡',ttl:'Tu plazo fijo no le ganó a la inflación',sub:'Wise y Lemon Cash tienen opciones con mejores tasas en dólares.',link:'TU_LINK_WISE',btn:'Ver Wise →'}},
+  inmueble:{won:{ico:'🏠',ttl:'Buen movimiento. Diversificá la próxima',sub:'El S&P 500 históricamente creció más que los inmuebles y es más líquido.',link:'TU_LINK_RIPIO',btn:'Ver ETF S&P 500 →'},lost:{ico:'📊',ttl:'Los inmuebles no siempre ganan en dólares',sub:'El ETF VOO creció +10.7% anual desde 1993 con mayor liquidez.',link:'TU_LINK_RIPIO',btn:'Conocer el VOO →'}},
+  vehiculo:{won:{ico:'🚗',ttl:'Tus ahorros pueden rendir más',sub:'Los autos rara vez son buena inversión.',link:'TU_LINK_LEMON',btn:'Ver opciones →'},lost:{ico:'📉',ttl:'Los autos se deprecian',sub:'Es esperable — pero ese dinero en USDT o ETF habría rendido distinto.',link:'TU_LINK_LEMON',btn:'Empezar a invertir →'}},
+  otro:{won:{ico:'💡',ttl:'¿Querés diversificar?',sub:'Bitcoin, S&P 500 y stablecoins son las opciones más populares en Latinoamérica.',link:'TU_LINK_LEMON',btn:'Ver opciones →'},lost:{ico:'💡',ttl:'¿Buscás mejor rendimiento?',sub:'El S&P 500 históricamente le ganó a la inflación del dólar en el largo plazo.',link:'TU_LINK_RIPIO',btn:'Ver S&P 500 →'}},
+};
+function showAffiliateCTA(type,won){
+  const card=$('affCTA');if(!card)return;
+  const data=(AFF_DATA[type]||AFF_DATA.otro)[won?'won':'lost'];
+  $('affCTAIco').textContent=data.ico;$('affCTATtl').textContent=data.ttl;$('affCTASub').textContent=data.sub;$('affCTABtn').textContent=data.btn;
+  card.href=data.link;card.style.display='flex';
+}
+
+/* COMPARISON */
+const CMP_OPTIONS=[
+  {id:'sp500',ico:'📈',name:'ETF S&P 500 (VOO)',ret:'~10.7% / año',link:'TU_LINK_RIPIO',linkName:'Ripio / Interactive Brokers'},
+  {id:'btc',ico:'₿',name:'Bitcoin',ret:'Alta variación',link:'TU_LINK_LEMON',linkName:'Lemon Cash'},
+  {id:'oro',ico:'🪙',name:'Oro',ret:'~3.4% / año',link:'TU_LINK_BINANCE',linkName:'Binance'},
+  {id:'usdt',ico:'💲',name:'USDT + Earn',ret:'~5% / año',link:'TU_LINK_BINANCE',linkName:'Binance'},
+  {id:'plazo',ico:'🏦',name:'Plazo fijo USD',ret:'~3% / año',link:'TU_LINK_WISE',linkName:'Wise'},
+  {id:'colchon',ico:'🛏️',name:'Dólar en colchón',ret:'0% / año',link:'',linkName:''},
+];
+const PSYCH={inmueble:{badge:'calm',text:'🏠 Tranquilidad psicológica',desc:'Tener casa propia reduce la incertidumbre del alquiler y da estabilidad emocional.'},vehiculo:{badge:'stress',text:'🚗 Deprecia con el tiempo',desc:'Los autos pierden valor año a año. Son útiles pero raramente son una buena inversión financiera.'},colchon:{badge:'calm',text:'😌 Sin volatilidad',desc:'No tiene rendimiento, pero tampoco te genera estrés.'},plazo_fijo:{badge:'calm',text:'😌 Bajo estrés',desc:'Sin volatilidad visible, aunque el rendimiento real suele ser bajo.'},sp500:{badge:'stress',text:'📊 Requiere tolerancia a caídas',desc:'Históricamente muy rentable, pero puede caer 30–50% en crisis.'},btc:{badge:'high-stress',text:'⚡ Alta volatilidad',desc:'Bitcoin puede subir o bajar 60–80% en meses. Requiere convicción y control emocional.'},oro:{badge:'calm',text:'🪙 Baja volatilidad',desc:'El oro es considerado refugio de valor. Crece lento pero con poca volatilidad.'},otro:{badge:'stress',text:'📦 Depende del activo',desc:''}};
+const PSYCH_CMP={sp500:{badge:'stress',text:'Requiere aguantar caídas del mercado'},btc:{badge:'high-stress',text:'Muy volátil'},oro:{badge:'calm',text:'Baja volatilidad, activo refugio'},usdt:{badge:'calm',text:'Stablecoin, sin volatilidad'},plazo:{badge:'calm',text:'Sin volatilidad visible'},colchon:{badge:'calm',text:'Sin rendimiento, sin estrés'}};
+
+let currentAsset=null;
+function selectAsset(type,btn){
+  currentAsset=type;
+  document.querySelectorAll('.asset-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');renderStep2(type);
+  $('step2Wrap').style.display='block';$('resWrap').classList.remove('on');
+  setTimeout(()=>$('step2Wrap').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+function renderStep2(type){
+  const card=$('step2Card');
+  const livePrice=getLivePrice(type);
+  const livePriceTag=livePrice?`<div class="live-tag"><span class="live-dot"></span>Precio actual: ${livePrice}</div>`:'';
+  const monthlyToggle=`<div style="margin-top:14px"><div onclick="toggleMonthly(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none"><div class="toggle-switch" id="monthlySwitch" style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0"><div style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div><span style="font-size:13px;font-weight:600;color:var(--ink2)">¿Sumabas algo cada mes? <span style="font-weight:400">(opcional)</span></span></div><div id="monthlyFields" style="display:none;margin-top:10px"><div class="field"><label>Aporte mensual (USD)</label><input type="number" id="monthlyAmt" value="100" min="0"></div></div></div>`;
+  const cfgs={
+    colchon:{title:'¿Cuánto guardaste y desde cuándo?',fields:`<div class="f2"><div class="field"><label>Año en que empezaste</label><input type="number" id="yearBuy" value="2015" min="1948" max="2025"></div><div class="field"><label>Cuánto guardaste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="5000" min="0"></div></div>${monthlyToggle}`},
+    sp500:{title:'¿Cuándo empezaste y cuánto pusiste?',fields:`${livePriceTag}<div class="f2"><div class="field"><label>Año de inicio</label><input type="number" id="yearBuy" value="2015" min="1990" max="2025"></div><div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div><div class="field" style="margin-top:12px"><label>¿Reinvertías los dividendos? <button class="info-btn" onclick="showTip(this,'Las empresas del S&P 500 pagan dividendos. Si los reinvertís, suma ~2% extra por año.')">ⓘ</button></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="spDividends" value="no" checked><span>No</span></label><label class="radio-opt"><input type="radio" name="spDividends" value="si"><span>Sí (+~2% / año)</span></label></div></div>${monthlyToggle}`},
+    btc:{title:'¿Cuándo compraste y cuánto pusiste?',fields:`${livePriceTag}<div class="f2"><div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2018" min="2009" max="2025"></div><div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div>${monthlyToggle}`},
+    oro:{title:'¿Cuándo compraste y cuánto pusiste?',fields:`${livePriceTag}<div class="f2"><div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2015" min="1971" max="2025"></div><div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div><p style="font-size:12px;color:var(--ink2);margin-top:8px">El precio del oro se expresa en dólares por onza troy (oz).</p>${monthlyToggle}`},
+    inmueble:{title:'¿Cuánto pagaste y cuánto vale hoy?',fields:`<div class="f2"><div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2010" min="1948" max="2025"></div><div class="field"><label>Precio de compra (USD)</label><input type="number" id="amtStart" autocomplete="off" value="80000" min="1"></div></div><div class="field"><label>¿Cuánto vale hoy? (USD)</label><input type="number" id="amtNow" autocomplete="off" value="140000" min="0"></div>`},
+    vehiculo:{title:'¿Cuánto pagaste y cuánto vale hoy?',fields:`<div class="f2"><div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2018" min="1990" max="2025"></div><div class="field"><label>Precio de compra (USD)</label><input type="number" id="amtStart" autocomplete="off" value="15000" min="1"></div></div><div class="field"><label>¿Cuánto vale hoy? (USD)</label><input type="number" id="amtNow" autocomplete="off" value="8000" min="0"></div>`},
+    plazo_fijo:{title:'¿Cuánto pusiste y a qué tasa?',fields:`<div class="f2"><div class="field"><label>Año de inicio</label><input type="number" id="yearBuy" value="2018" min="1948" max="2025"></div><div class="field"><label>Capital inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div><div class="f2"><div class="field"><label>Tasa anual (%)</label><input type="number" id="plazoTasa" value="3" min="0" max="100" step="0.1"></div><div class="field"><label>Valor actual (USD) <span style="font-weight:400;color:var(--ink2)">(opcional)</span></label><input type="number" id="amtNow" autocomplete="off" value="" min="0" placeholder="Lo calculamos →"></div></div>`},
+    otro:{title:'¿Cuándo empezaste, cuánto pusiste y cuánto vale hoy?',fields:`<div class="f2"><div class="field"><label>Año de inicio</label><input type="number" id="yearBuy" value="2015" min="1948" max="2025"></div><div class="field"><label>Monto inicial (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div><div class="field"><label>¿Cuánto vale hoy? (USD)</label><input type="number" id="amtNow" autocomplete="off" value="18000" min="0"></div>`},
+  };
+  const cfg=cfgs[type]||cfgs.otro;
+  card.innerHTML=`<div class="step-lbl"><div class="step-num">2</div><div class="step-title">${cfg.title}</div></div>${cfg.fields}`;
+}
+
+function toggleMonthly(row){
+  const sw=$('monthlySwitch'),fields=$('monthlyFields');if(!sw||!fields)return;
+  const isOn=fields.style.display==='block';
+  fields.style.display=isOn?'none':'block';
+  sw.style.background=isOn?'var(--border)':'var(--green)';
+  sw.querySelector('div').style.transform=isOn?'translateX(0)':'translateX(16px)';
+}
+
+function getLivePrice(type){
+  if(type==='btc'&&crypto.btc)return'$'+fmtN(Math.round(crypto.btc))+' / BTC';
+  if(type==='oro'&&crypto.gold)return'$'+fmtN(Math.round(crypto.gold))+' / oz';
+  if(type==='sp500'){const v=window._vooPrice;return v?'$'+v.toLocaleString('es-AR',{maximumFractionDigits:2})+' / VOO':'cargando…';}
+  return null;
+}
+
+function updatePsychBadge(){
+  const tp=currentAsset||'otro',p=PSYCH[tp]||PSYCH.otro;
+  $('psychBadge').innerHTML=`<span class="psych-badge ${p.badge}">${p.text}</span>${p.desc?`<p style="font-size:12px;color:var(--ink2);margin-top:6px;line-height:1.5">${p.desc}</p>`:''}`;
+}
+
+function buildBars(nom,inf,real){
+  const mx=Math.max(Math.abs(nom),Math.abs(inf),Math.abs(real),1);
+  const rows=[{l:'Ganancia nominal',v:nom,c:'var(--gold)'},{l:'Inflación acumulada',v:inf,c:'var(--red)'},{l:'Ganancia real neta',v:real,c:real>=0?'var(--green)':'var(--red)'}];
+  $('barsCard').innerHTML=rows.map(b=>`<div class="bar-block"><div class="bar-head"><span class="bar-lbl">${b.l}</span><span class="bar-val" style="color:${b.c}">${fmtPct(b.v)}</span></div><div class="bar-track"><div class="bar-fill" style="background:${b.c}" data-w="${(Math.abs(b.v)/mx*100).toFixed(1)}"></div></div></div>`).join('');
+  requestAnimationFrame(()=>$('barsCard').querySelectorAll('.bar-fill').forEach(el=>{el.style.width=el.dataset.w+'%';}));
+}
+
+function confetti(){
+  const c=$('cvs'),ctx=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;
+  const colors=['#16a34a','#d97706','#4ade80','#111','#fbbf24'];
+  const pts=Array.from({length:100},()=>({x:Math.random()*c.width,y:-20,r:Math.random()*6+2,d:Math.random()*1.5+1,col:colors[Math.floor(Math.random()*colors.length)],ta:0,ts:Math.random()*.08+.03,vx:Math.random()*2-1}));
+  let f=0;
+  (function draw(){ctx.clearRect(0,0,c.width,c.height);pts.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.ta);ctx.fillStyle=p.col;ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*1.8);ctx.restore();p.y+=p.d+.5;p.x+=p.vx;p.ta+=p.ts;});if(++f<220)requestAnimationFrame(draw);else ctx.clearRect(0,0,c.width,c.height);})();
+}
+
+function runComparisonModal(){
+  if(selectedCmpM.size===0){alert('Seleccioná al menos una alternativa para comparar.');return;}
+  const{amtStart,years,nomG,realG,currentType}=calcState;
+  const rows=[{name:getTypeName(currentType),ico:getTypeIco(currentType),nomG:nomG*100,realG:realG*100,psych:PSYCH[currentType]||PSYCH.otro,link:'',linkName:'',isYours:true}];
+  const yearBuy=calcState.yearBuy,cpiStart=getCPI(yearBuy)||getCPI(2000);
+  if(!cpiStart||curCPI==null){alert('Datos de inflación no disponibles.');return;}
+  const inflAcumFactor=curCPI/cpiStart;
+  selectedCmpM.forEach(id=>{
+    const opt=CMP_OPTIONS.find(o=>o.id===id);let finalNomG,dataNote='';
+    if(id==='colchon'){finalNomG=0;dataNote='0% nominal';}
+    else if(PRICE_HISTORY[id]&&Object.keys(PRICE_HISTORY[id]).length>0){
+      const prices=PRICE_HISTORY[id],priceYears=Object.keys(prices).map(Number);
+      const startYr=Math.max(yearBuy,Math.min(...priceYears)),endYr=Math.min(2025,Math.max(...priceYears));
+      const pStart=prices[startYr],pEnd=prices[endYr];
+      if(!pStart||!pEnd){finalNomG=0;dataNote='sin datos';}else{finalNomG=(pEnd/pStart)-1;dataNote=`${startYr}→${endYr}`;}
+    }else{const annRate=ANNUAL_RETURNS[id]||0.03;finalNomG=(amtStart*Math.pow(1+annRate,years)/amtStart)-1;dataNote=`~${(annRate*100).toFixed(0)}% anual`;}
+    const finalRealG=((1+finalNomG)/inflAcumFactor)-1;
+    rows.push({name:opt.name,ico:opt.ico,nomG:finalNomG*100,realG:finalRealG*100,note:dataNote,psych:PSYCH_CMP[id]||{badge:'calm',text:'—'},link:opt.link,linkName:opt.linkName,isYours:false});
+  });
+  rows.sort((a,b)=>b.realG-a.realG);
+  let tb='';
+  rows.forEach(r=>{
+    const rc=r.realG>=0?'cg':'cr',nc=r.nomG>=0?'ca':'cr';
+    const pb=`<span class="tag-pill ${r.psych.badge==='calm'?'tp-green':r.psych.badge==='stress'?'tp-gold':'tp-red'}">${r.psych.text}</span>`;
+    const lc=r.link?`<a href="${r.link}" class="tag-pill tp-blue" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${r.linkName} →</a>`:`<span class="tag-pill tp-gray">—</span>`;
+    const nc2=r.note?`<span style="font-size:11px;color:var(--ink2)">${r.note}</span>`:`<span style="font-size:11px;color:var(--ink2)">promedio hist.</span>`;
+    tb+=`<tr class="${r.isYours?'highlight-row':''}"><td><b>${r.ico} ${r.name}</b>${r.isYours?' <span class="tag-pill tp-gray" style="font-size:9px">tu inversión</span>':''}</td><td class="${nc}"><b>${fmtPct(r.nomG)}</b></td><td class="${rc}"><b>${fmtPct(r.realG)}</b></td><td>${nc2}</td><td>${pb}</td><td>${lc}</td></tr>`;
+  });
+  $('cmpTbodyM').innerHTML=tb;
+  const best=rows[0],yours=rows.find(r=>r.isYours),yoursRank=rows.indexOf(yours)+1;
+  $('cmpInsightM').innerHTML=yoursRank===1?`✅ Tu inversión fue la mejor de las comparadas en este período.`:`📊 En este período, ${yoursRank-1} alternativa${yoursRank>2?'s':''} hubiera${yoursRank>2?'n':''} tenido mejor retorno real. El mayor retorno habría sido <b>${best.ico} ${best.name}</b> con ${fmtPct(best.realG)} real. Los retornos pasados no garantizan resultados futuros.`;
+  const affItems=[];
+  selectedCmpM.forEach(id=>{const opt=CMP_OPTIONS.find(o=>o.id===id);if(opt.link){const descs={sp500:'Comprá el ETF VOO (S&P 500) desde Latinoamérica.',btc:'Comprá Bitcoin de forma simple y segura.',oro:'Operar oro como activo digital.',usdt:'Guardá USDT y ganá hasta 8% APY.',plazo:'Cuenta USD con IBAN y rendimiento anual.'};affItems.push({name:opt.linkName,desc:descs[id]||'',link:opt.link});}});
+  const seen=new Set();
+  const uniqueAff=affItems.filter(a=>{if(seen.has(a.name))return false;seen.add(a.name);return true;});
+  $('cmpAffM').innerHTML=uniqueAff.length?`<div class="aff-lbl" style="margin-top:14px">Dónde empezar</div>${uniqueAff.map(a=>`<div class="aff-item"><div><div class="aff-name">${a.name}</div><div class="aff-desc">${a.desc}</div></div><a href="${a.link}" class="aff-btn" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Abrir →</a></div>`).join('')}`:'';
+  $('cmpResultM').style.display='block';
+  setTimeout(()=>$('cmpResultM').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+function getTypeName(tp){return{inmueble:'Propiedad',vehiculo:'Vehículo',colchon:'Dólar colchón',plazo_fijo:'Plazo fijo',sp500:'ETF S&P 500 (VOO)',btc:'Bitcoin',oro:'Oro',otro:'Tu inversión'}[tp]||'Tu inversión';}
+function getTypeIco(tp){return{inmueble:'🏠',vehiculo:'🚗',colchon:'💵',plazo_fijo:'🏦',sp500:'📈',btc:'₿',oro:'🪙',otro:'📦'}[tp]||'📦';}
+
+/* CALCULAR */
+function calcular(){
+  const tp=currentAsset;
+  if(!tp){alert('Elegí un activo primero.');return;}
+  if(!apiStatus.cpi||curCPI==null||Object.keys(CPI).length===0){alert('Los datos de inflación (CPI) no están disponibles aún. Verificá tu conexión y recargá la página.');return;}
+  if(tp==='btc'&&(!apiStatus.btc||Object.keys(PRICE_HISTORY.btc).length<3)){alert('El historial de Bitcoin no está disponible. Recargá la página.');return;}
+  if(tp==='sp500'&&(!apiStatus.sp500||Object.keys(PRICE_HISTORY.sp500).length<3)){alert('El historial del S&P 500 no está disponible. Recargá la página.');return;}
+  if(tp==='oro'&&(!apiStatus.oro||Object.keys(PRICE_HISTORY.oro).length<3)){alert('El historial del oro no está disponible. Recargá la página.');return;}
+  if(tp==='btc'&&!crypto.btc){alert('El precio actual de Bitcoin no está disponible. Recargá la página.');return;}
+  if(tp==='sp500'&&!window._vooPrice){alert('El precio actual del ETF VOO no está disponible. Recargá la página.');return;}
+  if(tp==='oro'&&!crypto.gold){alert('El precio actual del oro no está disponible. Recargá la página.');return;}
+
+  const yr=parseInt($('yearBuy')?.value);
+  if(!yr||yr<1948||yr>2025){alert('Verificá el año.');return;}
+  const cs=getCPI(yr)||getCPI(2000);
+  if(!cs){alert('No hay datos de CPI para el año '+yr+'. Probá con un año más reciente.');return;}
+  const inflAcumFactor=curCPI/cs,years=2026-yr;
+  const monthlyAmt=parseFloat($('monthlyAmt')?.value)||0;
+  const hasMonthly=monthlyAmt>0&&$('monthlyFields')?.style.display==='block';
+  const initialAmt=parseFloat($('amtStart')?.value)||0;
+  let amtStart,amtEnd,nomG;
+  const nominalByYear=new Array(years+1).fill(0),investedByYear=new Array(years+1).fill(0);
+
+  if(tp==='colchon'){
+    nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
+    for(let i=1;i<=years;i++){const a=hasMonthly?monthlyAmt*12:0;nominalByYear[i]=nominalByYear[i-1]+a;investedByYear[i]=investedByYear[i-1]+a;}
+    amtStart=investedByYear[years];amtEnd=nominalByYear[years];nomG=0;
+  }else if(tp==='btc'){
+    const pStart=getBTC(yr),pEnd=crypto.btc||PRICE_HISTORY.btc[2025];
+    let btcAccum=initialAmt/pStart;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
+    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),pYear=getBTC(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)btcAccum+=a/pYear;investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=btcAccum*pYear;}
+    amtStart=investedByYear[years];amtEnd=btcAccum*(crypto.btc||PRICE_HISTORY.btc[2025]);nomG=(amtEnd/amtStart)-1;
+  }else if(tp==='oro'){
+    const pStart=getOro(yr),pEnd=crypto.gold||PRICE_HISTORY.oro[2025];
+    let ozAccum=initialAmt/pStart;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
+    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),pYear=getOro(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)ozAccum+=a/pYear;investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=ozAccum*pYear;}
+    amtStart=investedByYear[years];amtEnd=ozAccum*(crypto.gold||PRICE_HISTORY.oro[2025]);nomG=(amtEnd/amtStart)-1;
+  }else if(tp==='sp500'){
+    const pStartSP=getSP(yr),sp500Keys=Object.keys(PRICE_HISTORY.sp500).map(Number).sort((a,b)=>a-b);
+    const latestSpYr=sp500Keys[sp500Keys.length-1]||2025,vooFactor=window._vooPrice/(PRICE_HISTORY.sp500[latestSpYr]||1);
+    const pEndVOO=window._vooPrice,dividends=document.querySelector('input[name="spDividends"]:checked')?.value==='si',divRate=dividends?0.02:0;
+    const pStartVOO=pStartSP*vooFactor;let sharesAccum=initialAmt/pStartVOO;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
+    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),pSPYear=getSP(yy),pVOOYear=pSPYear*vooFactor*Math.pow(1+divRate,i),a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)sharesAccum+=a/pVOOYear;if(divRate>0)sharesAccum*=(1+divRate);investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=sharesAccum*pVOOYear;}
+    amtStart=investedByYear[years];amtEnd=sharesAccum*pEndVOO;nomG=(amtEnd/amtStart)-1;
+  }else if(tp==='plazo_fijo'){
+    const tasa=(parseFloat($('plazoTasa')?.value)||3)/100;amtStart=initialAmt;
+    let amtNowVal=parseFloat($('amtNow')?.value);
+    if(!amtNowVal||isNaN(amtNowVal)){let balance=initialAmt;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;for(let i=1;i<=years;i++){balance=balance*(1+tasa);nominalByYear[i]=balance;investedByYear[i]=initialAmt;}amtNowVal=balance;}
+    else{const annG=Math.pow(amtNowVal/initialAmt,1/years)-1;for(let i=0;i<=years;i++){nominalByYear[i]=initialAmt*Math.pow(1+annG,i);investedByYear[i]=initialAmt;}}
+    amtEnd=amtNowVal;nomG=(amtEnd/amtStart)-1;
+  }else{
+    amtStart=initialAmt;amtEnd=parseFloat($('amtNow')?.value);nomG=(amtEnd/amtStart)-1;
+    const annG=Math.pow(1+nomG,1/years)-1;
+    for(let i=0;i<=years;i++){nominalByYear[i]=amtStart*Math.pow(1+annG,i);investedByYear[i]=amtStart;}
+  }
+
+  if(!amtStart||!amtStart>0||isNaN(amtEnd)){alert('Verificá los datos ingresados.');return;}
+  const realG=((1+nomG)/inflAcumFactor)-1,pReal=realG*100;
+  calcState={amtStart,amtEnd,years,nomG,inflAcum:inflAcumFactor-1,realG,yearBuy:yr,currentType:tp};
+
+  const tnames={inmueble:'la propiedad',vehiculo:'el vehículo',colchon:'el dólar guardado',plazo_fijo:'el plazo fijo',sp500:'el ETF S&P 500 (VOO)',btc:'Bitcoin',oro:'el oro',otro:'tu inversión'};
+  const v=$('verdict');
+  if(realG>=0.05){
+    v.className='verdict win';$('vIco').textContent=pReal>=100?'🚀':pReal>=30?'🎉':'✅';
+    $('vNum').textContent='+'+pReal.toFixed(1)+'% real';$('vMsg').textContent=`${tnames[tp]} le ganó a la inflación del dólar en ${years} años. Tu dinero creció de verdad en poder de compra.`;confetti();
+  }else if(realG>=-0.05){
+    v.className='verdict draw';$('vIco').textContent='⚖️';$('vNum').textContent='Técnicamente empataste';$('vMsg').textContent=`${tnames[tp]} te mantuvo al nivel de la inflación del dólar.`;
+  }else{
+    v.className='verdict lose';$('vIco').textContent='📉';$('vNum').textContent=pReal.toFixed(1)+'% real';
+    const msgs=[`En ${years} años, ${tnames[tp]} no alcanzó a cubrir la inflación del dólar. Es más común de lo que parece.`,`Los mercados suben y bajan. Quedarse debajo de la inflación en un período no define el resultado final.`,`Conocer este número ya es una ventaja. La mayoría nunca hace este cálculo.`];
+    $('vMsg').textContent=msgs[Math.floor(Math.random()*msgs.length)];
+  }
+
+  updatePsychBadge();
+  $('sNom').textContent=tp==='colchon'?fmtUSD(amtStart):fmtPct(nomG*100);
+  $('sNom').className='stat-val '+(tp==='colchon'?'c-ink':nomG>0?'ca':'cr');
+  const nomLabel=document.querySelector('#resWrap .stat-cell:first-child .stat-lbl');
+  if(nomLabel)nomLabel.textContent=tp==='colchon'?'Total aportado':'Ganancia nominal';
+  $('sInf').textContent=fmtPct((inflAcumFactor-1)*100);
+  $('sReal').textContent=fmtPct(pReal);$('sReal').className='stat-val '+(pReal>=0?'cg':'cr');
+
+  buildBars(nomG*100,(inflAcumFactor-1)*100,pReal);
+  showAffiliateCTA(tp,realG>=0);
+
+  $('poderTxt').textContent=tp==='colchon'
+    ?`Aportaste un total de ${fmtUSD(amtStart)} en dólares desde ${yr}. Ese dinero, ajustado por la inflación acumulada del ${((inflAcumFactor-1)*100).toFixed(1)}%, equivale a ${fmtUSD(Math.round(amtStart/inflAcumFactor))} en poder de compra de ${yr}.`
+    :`Tus ${fmtUSD(initialAmt)} iniciales de ${yr} equivalen hoy a ${fmtUSD(Math.round(initialAmt*inflAcumFactor))} en dólares actuales (inflación acumulada ${((inflAcumFactor-1)*100).toFixed(1)}%). Tu inversión vale hoy ${fmtUSD(amtEnd)}.`;
+
+  let tb='';
+  for(let i=1;i<=years;i++){
+    const y2=yr+i,cy=getCPI(y2)||curCPI,nomVal=nominalByYear[i]||0,invVal=investedByYear[i]||amtStart;
+    const r2=nomVal/(cy/cs),inf2=((cy/cs)-1)*100,rp=invVal>0?((r2/invVal)-1)*100:0;
+    tb+=`<tr><td><b>${y2}</b></td><td style="color:var(--gold)">${fmtUSD(nomVal)}</td><td style="color:var(--red)">${fmtPct(inf2)}</td><td>${fmtUSD(r2)}</td><td style="color:${rp>=0?'var(--green)':'var(--red)'};font-weight:700">${fmtPct(rp)}</td></tr>`;
+  }
+  $('yearTbody').innerHTML=tb;
+  $('resWrap').classList.add('on');
+
+  // URL compartible
+  const monto=parseInt($('amtStart')?.value)||0;
+  const urlParams=new URLSearchParams({activo:tp,desde:yr,monto});
+  history.pushState(null,'','?'+urlParams.toString());
+  updateShareButtons(tp,monto,yr,pReal);
+  updateOGMeta(tp,monto,yr,pReal);
+
+  setTimeout(()=>$('resWrap').scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+/* SHARE */
+function shareResult(){
+  navigator.clipboard.writeText(window.location.href).then(()=>{
+    const btn=$('btnShare');btn.textContent='¡Link copiado!';
+    setTimeout(()=>btn.textContent='Compartir mi resultado →',2500);
+  });
+}
+function updateShareButtons(activo,monto,desde,resultado){
+  const url=window.location.href;
+  const textoActivo={btc:'Bitcoin',sp500:'el S&P 500',oro:'oro',colchon:'dólares guardados',plazo_fijo:'plazo fijo',inmueble:'una propiedad',vehiculo:'un auto',otro:'mi inversión'};
+  const ganoPerdi=resultado>=0?`gané +${resultado.toFixed(1)}%`:`perdí ${Math.abs(resultado).toFixed(1)}%`;
+  const tweet=encodeURIComponent(`Invertí $${monto} en ${textoActivo[activo]||'mi inversión'} en ${desde} y ${ganoPerdi} vs la inflación del dólar 💰 Calculá el tuyo: ${url} #finanzas #argentina #dolar`);
+  $('btnTweet').href=`https://twitter.com/intent/tweet?text=${tweet}`;
+}
+function updateOGMeta(activo,monto,desde,resultadoReal){
+  const params=new URLSearchParams({activo,monto,desde,resultado:resultadoReal.toFixed(1)});
+  const ogUrl=`/.netlify/functions/og-image?${params.toString()}`;
+  const tag=document.querySelector('meta[property="og:image"]');if(tag)tag.setAttribute('content',ogUrl);
+  const twitterTag=document.querySelector('meta[name="twitter:image"]');if(twitterTag)twitterTag.setAttribute('content',ogUrl);
+}
+function autoCalculateFromURL(){
+  const params=new URLSearchParams(window.location.search);
+  const activo=params.get('activo'),desde=params.get('desde'),monto=params.get('monto');
+  if(!activo||!desde||!monto)return;
+  const btn=document.querySelector(`[onclick="selectAsset('${activo}',this)"]`);
+  if(btn){
+    selectAsset(activo,btn);
+    setTimeout(()=>{
+      const yearInput=$('yearBuy'),amtInput=$('amtStart');
+      if(yearInput)yearInput.value=desde;if(amtInput)amtInput.value=monto;
+      if(apiStatus.cpi)calcular();
+    },100);
+  }
+}
+
+/* SIMULATOR */
+function runAportesSim(){
+  const state=calcState;if(!state||!state.yearBuy)return;if(curCPI==null||!apiStatus.cpi)return;
+  const monthly=parseFloat($('simMonthly')?.value)||0,strategy=$('simStrategy')?.value||'sp500';
+  const yr=state.yearBuy,years=state.years,cs=getCPI(yr)||getCPI(2000);if(!cs)return;
+  const inflAcumFactor=curCPI/cs,totalInv=state.amtStart+monthly*12*years;
+  let finalNom=state.amtEnd;
+  if(strategy==='btc'){const pEnd=crypto.btc||PRICE_HISTORY.btc[2025]||PRICE_HISTORY.btc[2024];if(pEnd){let extraBtc=0;for(let i=1;i<=years;i++){const pp=getBTC(Math.min(yr+i,2025))||pEnd;if(pp)extraBtc+=(monthly*12)/pp;}finalNom+=extraBtc*pEnd;}}
+  else if(strategy==='sp500'){const sp2010=getSP(2010),vooFactor=sp2010?(118/sp2010):null,pEndVOO=window._vooPrice||(vooFactor&&PRICE_HISTORY.sp500[2025]?PRICE_HISTORY.sp500[2025]*vooFactor:null);if(vooFactor&&pEndVOO){for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),ppS=getSP(yr+i-1)||getSP(yr),ppE=getSP(yy)||getSP(2025);if(ppS&&ppE)finalNom+=(monthly*12)*(ppE/ppS)*(pEndVOO/(ppE*vooFactor));}}}
+  else if(strategy==='oro'){const pEnd=crypto.gold||PRICE_HISTORY.oro[2025]||PRICE_HISTORY.oro[2024];if(pEnd){let extraOz=0;for(let i=1;i<=years;i++){const pp=getOro(Math.min(yr+i,2025))||pEnd;if(pp)extraOz+=(monthly*12)/pp;}finalNom+=extraOz*pEnd;}}
+  else finalNom=totalInv;
+  const finalReal=finalNom/inflAcumFactor,cls=finalReal>=totalInv?'cg':'cr';
+  $('simTotal').textContent=fmtUSD(Math.round(totalInv));$('simNominal').textContent=fmtUSD(Math.round(finalNom));$('simNominal').className='stat-val ca';$('simReal').textContent=fmtUSD(Math.round(finalReal));$('simReal').className='stat-val '+cls;
+}
+
+/* PLATFORMS */
+function buildPlat(){
+  const platList=$('platList');if(!platList)return;
+  const plats=[{ico:'₿',name:'Lemon Cash',tag:'Cripto · Argentina',desc:'Comprá Bitcoin, Ethereum y más. Tarjeta cripto, retiro en USD.',link:'TU_LINK_LEMON',btn:'Abrir cuenta gratis →'},{ico:'📈',name:'Ripio',tag:'ETF S&P 500 · ARG, Brasil',desc:'Invertí en el S&P 500 desde Latinoamérica. Sin cuenta en el exterior.',link:'TU_LINK_RIPIO',btn:'Empezar a invertir →'},{ico:'💵',name:'Wise',tag:'Cuenta USD · Global',desc:'Cuenta en dólares con IBAN, tarjeta y ~4.5% de interés anual en USD.',link:'TU_LINK_WISE',btn:'Abrir cuenta USD →'}];
+  platList.innerHTML=plats.map(p=>`<a href="${p.link}" class="aff-cta" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" style="display:flex;text-decoration:none"><div class="aff-cta-ico">${p.ico}</div><div class="aff-cta-body"><div class="aff-cta-tag">${p.tag}</div><div class="aff-cta-ttl">${p.name}</div><div class="aff-cta-sub">${p.desc}</div><div class="aff-cta-btn" style="margin-top:10px">${p.btn}</div></div></a>`).join('');
+}
+
+/* COMPOUND */
+function calcComp(){
+  const cap=parseFloat($('cCap').value),ap=parseFloat($('cAporte').value)||0,t=parseFloat($('cTasa').value)/100,an=parseInt($('cAnios').value),inf=(curInfl??3)/100;
+  let nom=cap,cf=1;const totInv=cap+ap*12*an;let tb='';
+  for(let i=1;i<=an;i++){nom=nom*(1+t)+ap*12;cf*=(1+inf);const r=nom/cf,col=cap/cf,ia=(cf-1)*100;tb+=`<tr><td><b>${new Date().getFullYear()-an+i}</b></td><td style="color:var(--gold)">${fmtUSD(nom)}</td><td style="color:var(--red)">${fmtPct(ia)}</td><td style="color:${r>=cap?'var(--green)':'var(--red)'}">${fmtUSD(r)}</td><td style="color:var(--red)">${fmtUSD(col)}</td></tr>`;}
+  $('compTbody').innerHTML=tb;
+  const rf=nom/cf,gn=rf-totInv;
+  $('cNom').textContent=fmtUSD(nom);$('cReal').textContent=fmtUSD(rf);$('cReal').className='stat-val '+(rf>=cap?'cg':'cr');
+  $('cGan').textContent=(gn>=0?'+':'-')+fmtUSD(Math.abs(gn));$('cGan').className='stat-val '+(gn>=0?'cg':'cr');
+  $('compRes').classList.add('on');setTimeout(()=>$('compRes').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+/* INIT */
+(async()=>{await loadAllData();setInterval(fetchCryptoLive,60000);setInterval(loadAllData,300000);})();
+</script>
+
+</BaseLayout>

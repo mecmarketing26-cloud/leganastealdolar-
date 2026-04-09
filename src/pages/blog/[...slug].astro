@@ -1,0 +1,106 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map(post => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const slug = post.id;
+const dateStr = post.data.date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+const canonicalURL = `https://leganastealdolar.com/blog/${slug}/`;
+
+const schemaBlogPosting = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": post.data.title,
+  "description": post.data.description,
+  "datePublished": post.data.date.toISOString(),
+  "author": { "@type": "Person", "name": post.data.author },
+  "publisher": { "@type": "Organization", "name": "¿Le Ganaste al Dólar?" },
+  "url": canonicalURL,
+};
+
+const AFF_DATA: Record<string, { name: string; desc: string; link: string }> = {
+  lemon:   { name: 'Lemon Cash',  desc: 'Comprá y vendé cripto en pesos. La app cripto más popular de Argentina.',            link: 'TU_LINK_LEMON'   },
+  binance:  { name: 'Binance',    desc: 'El exchange más grande del mundo. Accedé a cientos de criptomonedas.',               link: 'TU_LINK_BINANCE' },
+  ripio:    { name: 'Ripio',      desc: 'Invertí en el ETF S&P 500 (VOO) desde Argentina y Latinoamérica.',                   link: 'TU_LINK_RIPIO'   },
+  bitso:    { name: 'Bitso',      desc: 'Exchange latinoamericano. Ideal para transferencias entre Argentina, México y Colombia.', link: 'TU_LINK_BITSO' },
+  wise:     { name: 'Wise',       desc: 'Transferencias internacionales al tipo de cambio real. La mejor opción para recibir dólares.', link: 'TU_LINK_WISE' },
+  belo:     { name: 'Belo',       desc: 'Tarjeta y wallet en dólares. Usá tus dólares digitales en cualquier comercio.',      link: 'TU_LINK_BELO'    },
+};
+
+const ALL_AFF = ['lemon', 'binance', 'ripio', 'bitso', 'wise', 'belo'];
+const aff = post.data.affiliateContext;
+const affList = aff === 'all' ? ALL_AFF : (aff ? [aff] : []);
+---
+<BaseLayout
+  title={`${post.data.title} | Blog ¿Le Ganaste al Dólar?`}
+  description={post.data.description}
+  ogType="article"
+  canonicalURL={canonicalURL}
+  schemaMarkup={[schemaBlogPosting]}
+>
+
+<div style="max-width:720px;margin:0 auto;padding:28px 20px 80px">
+
+  <!-- BREADCRUMB -->
+  <div class="post-breadcrumb">
+    <a href="/">Inicio</a> › <a href="/blog">Blog</a> › {post.data.title}
+  </div>
+
+  <!-- TITLE & META -->
+  <h1 class="post-title">{post.data.title}</h1>
+  <div class="post-meta">
+    <span>📅 {dateStr}</span>
+    <span>✍️ {post.data.author}</span>
+    <span>⏱ ~4 min</span>
+    {post.data.tags?.map(tag => <span class="blog-tag">#{tag}</span>)}
+  </div>
+
+  <!-- CONTENT -->
+  <div class="post-body">
+    <Content />
+  </div>
+
+  <!-- CTA: ir a la calculadora -->
+  <div class="post-cta-box">
+    <h2>¿Querés calcularlo vos mismo?</h2>
+    <p>Ingresá tu inversión y el año de inicio. Te decimos en segundos si le ganaste a la inflación del dólar.</p>
+    <a href="/">Ir a la calculadora gratuita →</a>
+  </div>
+
+  <!-- AFFILIATE CARDS -->
+  {affList.length > 0 && (
+    <div style="margin-top:24px">
+      <div class="aff-lbl">Dónde empezar con estas inversiones</div>
+      {affList.map(key => {
+        const a = AFF_DATA[key];
+        if (!a) return null;
+        return (
+          <div class="aff-card">
+            <div class="aff-card-body">
+              <div class="aff-card-name">{a.name}</div>
+              <div class="aff-card-desc">{a.desc}</div>
+              <a href={a.link} class="aff-card-btn" target="_blank" rel="noopener noreferrer">Abrir con mi link →</a>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )}
+
+  <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:20px">
+    <a href="/blog" class="ref-back">← Volver al blog</a>
+  </div>
+
+</div>
+
+</BaseLayout>

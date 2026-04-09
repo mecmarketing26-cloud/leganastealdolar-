@@ -1,0 +1,81 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const allPosts = await getCollection('blog');
+const posts = allPosts.sort((a, b) => {
+  if (a.data.featured && !b.data.featured) return -1;
+  if (!a.data.featured && b.data.featured) return 1;
+  return b.data.date.valueOf() - a.data.date.valueOf();
+});
+
+const AFF_LABELS: Record<string, string> = {
+  lemon: 'Lemon Cash',
+  binance: 'Binance',
+  ripio: 'Ripio',
+  bitso: 'Bitso',
+  wise: 'Wise',
+  belo: 'Belo',
+  all: 'Todas las plataformas',
+};
+
+const AFF_LINKS: Record<string, string> = {
+  lemon: 'TU_LINK_LEMON',
+  binance: 'TU_LINK_BINANCE',
+  ripio: 'TU_LINK_RIPIO',
+  bitso: 'TU_LINK_BITSO',
+  wise: 'TU_LINK_WISE',
+  belo: 'TU_LINK_BELO',
+};
+
+function readingTime(words: number) {
+  return Math.max(1, Math.ceil(words / 200));
+}
+---
+<BaseLayout
+  title="Blog | ¿Le ganaste al dólar?"
+  description="Análisis y comparativas de inversiones contra la inflación del dólar. Bitcoin, S&P 500, oro y más."
+>
+
+<div style="max-width:720px;margin:0 auto;padding:36px 20px 80px">
+
+  <h1 style="font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px">Blog</h1>
+  <p style="font-size:15px;color:var(--ink2);margin-bottom:28px;line-height:1.6">Análisis de inversiones contra la inflación del dólar. Datos reales, sin venderte humo.</p>
+
+  <div class="blog-grid">
+    {posts.map(post => {
+      const words = 650;
+      const mins = readingTime(words);
+      const dateStr = post.data.date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+      const aff = post.data.affiliateContext;
+      return (
+        <article class={`blog-card${post.data.featured ? ' featured' : ''}`}>
+          {post.data.featured && <div class="blog-featured-badge">⭐ Destacado</div>}
+          <a class="blog-card-title" href={`/blog/${post.id}/`}>{post.data.title}</a>
+          <div class="blog-card-meta">{dateStr} · {mins} min de lectura · por {post.data.author}</div>
+          <p class="blog-card-desc">{post.data.description}</p>
+          {post.data.tags && (
+            <div class="blog-tags">
+              {post.data.tags.map(tag => <span class="blog-tag">#{tag}</span>)}
+            </div>
+          )}
+          {aff && aff !== 'all' && (
+            <a href={AFF_LINKS[aff]} target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--green);background:var(--green-lt);border:1px solid var(--green-bd);padding:4px 10px;border-radius:99px;text-decoration:none;margin-top:4px">
+              Abrir en {AFF_LABELS[aff]} →
+            </a>
+          )}
+        </article>
+      );
+    })}
+  </div>
+
+  <div style="margin-top:40px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;text-align:center">
+    <div style="font-size:22px;margin-bottom:8px">💰</div>
+    <div style="font-size:16px;font-weight:800;margin-bottom:6px">¿Cuánto ganaste vos?</div>
+    <p style="font-size:14px;color:var(--ink2);margin-bottom:14px;line-height:1.6">Calculá si tu inversión le ganó a la inflación del dólar con datos históricos reales.</p>
+    <a href="/" style="display:inline-block;background:var(--ink);color:#fff;font-weight:700;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none">Ir a la calculadora →</a>
+  </div>
+
+</div>
+
+</BaseLayout>

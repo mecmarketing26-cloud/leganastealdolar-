@@ -1,0 +1,59 @@
+<!DOCTYPE html><html lang="es"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>¿Qué pasó si hubieras comprado Bitcoin en enero 2020 en vez de dólares? | Blog ¿Le Ganaste al Dólar?</title><meta name="description" content="Analizamos qué hubiera pasado con $1.000 invertidos en Bitcoin en enero 2020. Los números son sorprendentes."><meta name="keywords" content="calculadora inflacion dolar, bitcoin vs inflacion, sp500 latinoamerica, le gane al dolar, inflacion real usd, inversión argentina, VOO ETF, plazo fijo usd"><meta name="author" content="¿Le Ganaste al Dólar?"><meta name="robots" content="index, follow"><link rel="canonical" href="https://leganastealdolar.com/blog/btc-vs-dolar-2020/"><meta property="og:type" content="article"><meta property="og:url" content="https://leganastealdolar.com/blog/btc-vs-dolar-2020/"><meta property="og:title" content="¿Qué pasó si hubieras comprado Bitcoin en enero 2020 en vez de dólares? | Blog ¿Le Ganaste al Dólar?"><meta property="og:description" content="Analizamos qué hubiera pasado con $1.000 invertidos en Bitcoin en enero 2020. Los números son sorprendentes."><meta property="og:image" content="https://leganastealdolar.com/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:locale" content="es_AR"><meta property="og:site_name" content="¿Le Ganaste al Dólar?"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:url" content="https://leganastealdolar.com/blog/btc-vs-dolar-2020/"><meta name="twitter:title" content="¿Qué pasó si hubieras comprado Bitcoin en enero 2020 en vez de dólares? | Blog ¿Le Ganaste al Dólar?"><meta name="twitter:description" content="Analizamos qué hubiera pasado con $1.000 invertidos en Bitcoin en enero 2020. Los números son sorprendentes."><meta name="twitter:image" content="https://leganastealdolar.com/og-image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"¿Qué pasó si hubieras comprado Bitcoin en enero 2020 en vez de dólares?","description":"Analizamos qué hubiera pasado con $1.000 invertidos en Bitcoin en enero 2020. Los números son sorprendentes.","datePublished":"2026-01-15T00:00:00.000Z","author":{"@type":"Person","name":"Equipo LGD"},"publisher":{"@type":"Organization","name":"¿Le Ganaste al Dólar?"},"url":"https://leganastealdolar.com/blog/btc-vs-dolar-2020/"}</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="dns-prefetch" href="https://api.coingecko.com"><link rel="dns-prefetch" href="https://fred.stlouisfed.org"><link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💵</text></svg>"><link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💵</text></svg>"><meta http-equiv="X-Content-Type-Options" content="nosniff"><meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"><meta name="theme-color" content="#111111"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript><link rel="stylesheet" href="/_astro/BaseLayout.BB_GVSvg.css"></head> <body> <canvas id="cvs"></canvas> <a href="#main-content" style="position:absolute;top:-40px;left:0;background:var(--ink);color:#fff;padding:8px 16px;z-index:10000;border-radius:0 0 8px 0;font-size:13px;font-weight:600;transition:top .2s" onfocus="this.style.top='0'" onblur="this.style.top='-40px'">Saltar al contenido</a> <!-- TICKER --> <div class="ticker"> <div class="ticker-track"> <div class="ti"><span class="ti-lbl">BTC</span><span class="ti-val" id="tBtc">—</span><span id="tBtcC" class="cne">—</span></div> <div class="ti"><span class="ti-lbl">ETH</span><span class="ti-val" id="tEth">—</span><span id="tEthC" class="cne">—</span></div> <div class="ti"><span class="ti-lbl">Inflación USD</span><span class="ti-val cne" id="tCpi">—</span><span class="cne">anual</span></div> <div class="ti"><span class="ti-lbl">Oro / oz</span><span class="ti-val" id="tGold">—</span><span id="tGoldC" class="cne">—</span></div> <div class="ti"><span class="ti-lbl">VOO</span><span class="ti-val cup" id="tVoo">cargando…</span><span id="tVooC" class="cup"></span></div> <div class="ti"><span class="ti-lbl">BTC</span><span class="ti-val" id="tBtc2">—</span><span id="tBtcC2" class="cne">—</span></div> <div class="ti"><span class="ti-lbl">ETH</span><span class="ti-val" id="tEth2">—</span><span id="tEthC2" class="cne">—</span></div> <div class="ti"><span class="ti-lbl">Inflación USD</span><span class="ti-val cne" id="tCpi2">—</span><span class="cne">anual</span></div> <div class="ti"><span class="ti-lbl">Oro / oz</span><span class="ti-val" id="tGold2">—</span><span id="tGoldC2" class="cne">—</span></div> <div class="ti"><span class="ti-lbl">VOO</span><span class="ti-val cup" id="tVoo2">cargando…</span><span id="tVooC2" class="cup"></span></div> </div> </div> <!-- HEADER --> <header> <div class="header-inner"> <a href="/" class="logo">¿Le ganaste al <span>dólar</span>?</a> <nav class="header-nav"> <a href="/" class>Mi inversión</a> <a href="/blog" class="active">Blog</a> <a href="/referidos" class>Referidos</a> </nav> </div> </header>  <div style="max-width:720px;margin:0 auto;padding:28px 20px 80px"> <!-- BREADCRUMB --> <div class="post-breadcrumb"> <a href="/">Inicio</a> › <a href="/blog">Blog</a> › ¿Qué pasó si hubieras comprado Bitcoin en enero 2020 en vez de dólares? </div> <!-- TITLE & META --> <h1 class="post-title">¿Qué pasó si hubieras comprado Bitcoin en enero 2020 en vez de dólares?</h1> <div class="post-meta"> <span>📅 14 de enero de 2026</span> <span>✍️ Equipo LGD</span> <span>⏱ ~4 min</span> <span class="blog-tag">#bitcoin</span><span class="blog-tag">#comparativa</span><span class="blog-tag">#2020</span><span class="blog-tag">#cripto</span> </div> <!-- CONTENT --> <div class="post-body"> <p>Enero de 2020. El mundo todavía no sospechaba lo que se venía. Bitcoin cotizaba alrededor de <strong>$7.200 dólares</strong>. La mayoría de los argentinos miraba el dólar como el único refugio seguro.</p>
+<p>¿Qué hubiera pasado si en ese momento, en vez de comprar dólares, hubieran puesto $1.000 en Bitcoin?</p>
+<h2 id="el-crash-de-marzo-y-la-primera-prueba">El crash de marzo y la primera prueba</h2>
+<p>Dos meses después de entrar, el mercado se desplomó. COVID-19 llegó a los mercados con toda su fuerza: Bitcoin cayó a casi <strong>$4.000</strong> en marzo de 2020. Una caída del 44% en pocas semanas.</p>
+<p>Muchos vendieron. Los que aguantaron, ganaron.</p>
+<h2 id="la-recuperación-más-espectacular-de-la-historia">La recuperación más espectacular de la historia</h2>
+<p>Lo que pasó después es una de las historias financieras más impresionantes del siglo. Bitcoin no solo se recuperó — multiplicó su valor varias veces.</p>
+<p>Para diciembre de 2020, Bitcoin había escalado a <strong>$29.000</strong>. Casi 4 veces el precio de enero.</p>
+<h2 id="los-números-concretos">Los números concretos</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody><tr><td>Inversión inicial</td><td>$1.000 USD</td></tr><tr><td>Precio BTC enero 2020</td><td>$7.200</td></tr><tr><td>BTC comprados</td><td>~0.139 BTC</td></tr><tr><td>Precio BTC diciembre 2020</td><td>$29.000</td></tr><tr><td>Valor dic. 2020</td><td>$4.027 USD</td></tr><tr><td>Ganancia nominal</td><td>+303%</td></tr><tr><td>Inflación USD acumulada 2020</td><td>+1.2%</td></tr><tr><td>Ganancia real (vs inflación)</td><td>+299%</td></tr></tbody></table>
+<h2 id="lo-que-esto-significa">Lo que esto significa</h2>
+<p>Una ganancia del 303% nominal contra una inflación del 1.2% en el año. Eso es una ganancia real de casi 300%. En dólares de poder de compra constante.</p>
+<p>Por supuesto, este fue uno de los mejores años de Bitcoin en la historia. No todos los años son así. El 2022, por ejemplo, fue devastador para el activo.</p>
+<h2 id="el-riesgo-que-nadie-menciona">El riesgo que nadie menciona</h2>
+<p>Bitcoin requiere tolerancia psicológica muy alta. Quien compró en enero 2020 y vendió en marzo perdió. Quien aguantó, ganó. Esa diferencia no es suerte — es convicción y control emocional.</p>
+<p>La pregunta no es solo “¿cuánto gané?” sino “¿hubiera podido aguantar el -44% sin vender?”</p>
+<h2 id="querés-calcularlo-vos-mismo">¿Querés calcularlo vos mismo?</h2>
+<p>Usá la calculadora para ver cómo le fue a tu propia inversión en el mismo período. Podés calcular Bitcoin desde cualquier año con datos históricos reales.</p> </div> <!-- CTA: ir a la calculadora --> <div class="post-cta-box"> <h2>¿Querés calcularlo vos mismo?</h2> <p>Ingresá tu inversión y el año de inicio. Te decimos en segundos si le ganaste a la inflación del dólar.</p> <a href="/">Ir a la calculadora gratuita →</a> </div> <!-- AFFILIATE CARDS --> <div style="margin-top:24px"> <div class="aff-lbl">Dónde empezar con estas inversiones</div> <div class="aff-card"> <div class="aff-card-body"> <div class="aff-card-name">Binance</div> <div class="aff-card-desc">El exchange más grande del mundo. Accedé a cientos de criptomonedas.</div> <a href="TU_LINK_BINANCE" class="aff-card-btn" target="_blank" rel="noopener noreferrer">Abrir con mi link →</a> </div> </div> </div> <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:20px"> <a href="/blog" class="ref-back">← Volver al blog</a> </div> </div>  <footer> <div class="footer-brand">¿Le ganaste al dólar?</div> <div class="footer-note">Datos: FRED/BLS · CoinGecko · No es asesoramiento financiero.</div> </footer> </body></html>

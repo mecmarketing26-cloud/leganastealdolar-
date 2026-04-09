@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(cp fumbling-flare/astro.config.mjs .)",
+      "Bash(cp fumbling-flare/package.json .)",
+      "Bash(cp fumbling-flare/tsconfig.json .)",
+      "Bash(cp -r fumbling-flare/src .)",
+      "Bash(cp -r fumbling-flare/public .)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/astro/package.json'\\).version\\)\")"
+    ]
+  }
+}
