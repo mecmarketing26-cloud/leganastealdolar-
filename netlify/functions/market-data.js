@@ -6,10 +6,11 @@
 //   CRYPTOCOMPARE_API_KEY → cryptocompare.com  (gratis, sin tarjeta)
 //   GOLD_API_KEY          → gold-api.com       (gratis, sin tarjeta) — oro real-time
 
-const FRED_KEY   = process.env.FRED_API_KEY;
-const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
-const CRYPTO_KEY = process.env.CRYPTOCOMPARE_API_KEY;
-const GOLD_KEY   = process.env.GOLD_API_KEY;
+const FRED_KEY        = process.env.FRED_API_KEY;
+const FINNHUB_KEY     = process.env.FINNHUB_API_KEY;
+const CRYPTO_KEY      = process.env.CRYPTOCOMPARE_API_KEY;
+const GOLD_KEY        = process.env.GOLD_API_KEY;
+const COINGECKO_KEY   = process.env.COINGECKO_API_KEY; // opcional — demo key gratuita
 
 async function fetchJSON(url, headers = {}) {
   const controller = new AbortController();
@@ -152,6 +153,27 @@ exports.handler = async (event) => {
         if (yr >= 1970 && d.price > 0) result[yr] = Math.round(d.price);
       });
       return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(result) };
+    }
+
+    // ── CRYPTO LIVE (BTC, ETH, Oro spot — proxea CoinGecko server-side) ─
+    if (type === 'crypto') {
+      const cgHeaders = COINGECKO_KEY ? { 'x-cg-demo-api-key': COINGECKO_KEY } : {};
+      const data = await fetchJSON(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,pax-gold&vs_currencies=usd&include_24hr_change=true',
+        cgHeaders
+      );
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          btc:   data.bitcoin?.usd         ?? null,
+          btcC:  data.bitcoin?.usd_24h_change ?? null,
+          eth:   data.ethereum?.usd        ?? null,
+          ethC:  data.ethereum?.usd_24h_change ?? null,
+          gold:  data['pax-gold']?.usd     ?? null,
+          goldC: data['pax-gold']?.usd_24h_change ?? null,
+        })
+      };
     }
 
     // ── TODOS LOS DATOS DE UNA (para cargar la web en 1 round-trip) ──

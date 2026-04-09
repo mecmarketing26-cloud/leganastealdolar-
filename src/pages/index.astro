@@ -413,15 +413,15 @@ function updateVooTicker(price,chg){
 
 async function fetchCryptoLive(){
   try{
-    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,pax-gold&vs_currencies=usd&include_24hr_change=true');
-    if(!r.ok)throw new Error('CoinGecko HTTP '+r.status);
+    const r=await fetch(`${API}?type=crypto`);
+    if(!r.ok)throw new Error('crypto HTTP '+r.status);
     const d=await r.json();
-    crypto.btc=d.bitcoin?.usd??null;crypto.btcC=d.bitcoin?.usd_24h_change??null;
-    crypto.eth=d.ethereum?.usd??null;crypto.ethC=d.ethereum?.usd_24h_change??null;
-    crypto.gold=d['pax-gold']?.usd??null;crypto.goldC=d['pax-gold']?.usd_24h_change??null;
+    crypto.btc=d.btc??null;crypto.btcC=d.btcC??null;
+    crypto.eth=d.eth??null;crypto.ethC=d.ethC??null;
+    crypto.gold=d.gold??null;crypto.goldC=d.goldC??null;
     if(crypto.gold){PRICE_HISTORY.oro[2025]=Math.round(crypto.gold);PRICE_HISTORY.oro[2026]=Math.round(crypto.gold);apiStatus.oro=true;}
     if(crypto.btc){PRICE_HISTORY.btc[2025]=Math.round(crypto.btc);PRICE_HISTORY.btc[2026]=Math.round(crypto.btc);}
-  }catch(e){console.warn('CoinGecko no disponible:',e.message);}
+  }catch(e){console.warn('crypto live no disponible:',e.message);}
   setTick('tBtc','tBtc2','tBtcC','tBtcC2',crypto.btc,crypto.btcC);
   setTick('tEth','tEth2','tEthC','tEthC2',crypto.eth,crypto.ethC);
   setTick('tGold','tGold2','tGoldC','tGoldC2',crypto.gold,crypto.goldC);
