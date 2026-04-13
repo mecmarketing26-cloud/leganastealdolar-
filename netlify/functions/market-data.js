@@ -71,18 +71,58 @@ exports.handler = async (event) => {
     }
 
     // ── S&P 500 HISTÓRICO (via FRED) ──────────────────────────────────
+    // Estrategia: mensual EOP → tomar solo diciembre da cobertura desde 1927
+    // + Wilshire 5000 (WILL5000PR) como puente para 1971+ si SP500 tiene gaps
     if (type === 'sp500') {
       if (!FRED_KEY) throw new Error('FRED_API_KEY no configurada');
-      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=SP500&frequency=a&aggregation_method=eop&api_key=${FRED_KEY}&file_type=json`;
-      const data = await fetchJSON(url);
-      if (!data.observations) throw new Error('FRED SP500 sin observaciones');
-      const result = {};
-      data.observations.forEach(obs => {
-        const yr = parseInt(obs.date.slice(0, 4));
-        const val = parseFloat(obs.value);
-        if (!isNaN(val) && obs.value !== '.') result[yr] = Math.round(val);
-      });
-      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(result) };
+
+      // Helpers para parsear observaciones FRED → solo valores de diciembre por año
+      const parseDecember = (observations) => {
+        const out = {};
+        (observations || []).forEach(obs => {
+          const yr   = parseInt(obs.date.slice(0, 4));
+          const mon  = parseInt(obs.date.slice(5, 7));
+          const val  = parseFloat(obs.value);
+          if (mon === 12 && !isNaN(val) && obs.value !== '.') out[yr] = Math.round(val);
+        });
+        return out;
+      };
+
+      // 1) SP500 mensual EOP — cubre 1927 a la fecha (con posibles huecos intermedios)
+      const sp500Raw = await fetchJSON(
+        `https://api.stlouisfed.org/fred/series/observations?series_id=SP500&frequency=m&aggregation_method=eop&observation_start=1927-01-01&api_key=${FRED_KEY}&file_type=json`
+      );
+      const sp500 = parseDecember(sp500Raw.observations);
+
+      // 2) Wilshire 5000 mensual EOP — cubre desde 1971, útil como puente si SP500 tiene gaps
+      let will = {};
+      try {
+        const willRaw = await fetchJSON(
+          `https://api.stlouisfed.org/fred/series/observations?series_id=WILL5000PR&frequency=m&aggregation_method=eop&observation_start=1971-01-01&api_key=${FRED_KEY}&file_type=json`
+        );
+        will = parseDecember(willRaw.observations);
+      } catch (e) {
+        console.warn('Wilshire 5000 no disponible:', e.message);
+      }
+
+      // Normalizar Wilshire al nivel del SP500: calcular factor en el primer año común
+      const merged = {};
+      if (Object.keys(will).length > 0 && Object.keys(sp500).length > 0) {
+        const sp500Years = Object.keys(sp500).map(Number).sort((a, b) => a - b);
+        const willYears  = Object.keys(will).map(Number).sort((a, b) => a - b);
+        // Primer año donde ambos coinciden → factor de escala
+        const commonYr = sp500Years.find(y => will[y]);
+        const factor   = commonYr ? sp500[commonYr] / will[commonYr] : null;
+        // Primero poblar con Wilshire normalizado para los años que SP500 no tiene
+        if (factor) {
+          willYears.forEach(y => { if (!sp500[y]) merged[y] = Math.round(will[y] * factor); });
+        }
+      }
+      // SP500 tiene prioridad sobre Wilshire
+      Object.assign(merged, sp500);
+
+      if (Object.keys(merged).length === 0) throw new Error('FRED SP500 sin datos válidos');
+      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(merged) };
     }
 
     // ── VOO PRECIO ACTUAL (Finnhub) ───────────────────────────────────
