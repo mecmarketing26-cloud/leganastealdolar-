@@ -540,7 +540,7 @@ function renderStep2(type){
   const monthlyToggle=`<div style="margin-top:14px"><div onclick="toggleMonthly(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none"><div class="toggle-switch" id="monthlySwitch" style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0"><div style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div><span style="font-size:13px;font-weight:600;color:var(--ink2)">¿Sumabas algo cada mes? <span style="font-weight:400">(opcional)</span></span></div><div id="monthlyFields" style="display:none;margin-top:10px"><div class="field"><label>Aporte mensual (USD)</label><input type="number" id="monthlyAmt" value="100" min="0"></div></div></div>`;
   const cfgs={
     colchon:{title:'¿Cuánto guardaste y desde cuándo?',fields:`<div class="f2"><div class="field"><label>Año en que empezaste</label><input type="number" id="yearBuy" value="2015" min="1948" max="2025"></div><div class="field"><label>Cuánto guardaste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="5000" min="0"></div></div>${monthlyToggle}`},
-    sp500:{title:'¿Cuándo empezaste y cuánto pusiste?',fields:`${livePriceTag}<div class="f2"><div class="field"><label>Año de inicio</label><input type="number" id="yearBuy" value="2015" min="1990" max="2025"></div><div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div><div class="field" style="margin-top:12px"><label>¿Reinvertías los dividendos? <button class="info-btn" onclick="showTip(this,'Las empresas del S&P 500 pagan dividendos. Si los reinvertís, suma ~2% extra por año.')">ⓘ</button></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="spDividends" value="no" checked><span>No</span></label><label class="radio-opt"><input type="radio" name="spDividends" value="si"><span>Sí (+~2% / año)</span></label></div></div>${monthlyToggle}`},
+    sp500:{title:'¿Cuándo empezaste y cuánto pusiste?',fields:`${livePriceTag}<div class="f2"><div class="field"><label>Año de inicio</label><input type="number" id="yearBuy" value="2015" min="1950" max="2025"></div><div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div><div class="field" style="margin-top:12px"><label>¿Reinvertías los dividendos? <button class="info-btn" onclick="showTip(this,'Las empresas del S&P 500 pagan dividendos. Si los reinvertís, suma ~2% extra por año.')">ⓘ</button></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="spDividends" value="no" checked><span>No</span></label><label class="radio-opt"><input type="radio" name="spDividends" value="si"><span>Sí (+~2% / año)</span></label></div></div>${monthlyToggle}`},
     btc:{title:'¿Cuándo compraste y cuánto pusiste?',fields:`${livePriceTag}<div class="f2"><div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2018" min="2009" max="2025"></div><div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div>${monthlyToggle}`},
     oro:{title:'¿Cuándo compraste y cuánto pusiste?',fields:`${livePriceTag}<div class="f2"><div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2015" min="1971" max="2025"></div><div class="field"><label>Cuánto invertiste (USD)</label><input type="number" id="amtStart" autocomplete="off" value="10000" min="1"></div></div><p style="font-size:12px;color:var(--ink2);margin-top:8px">El precio del oro se expresa en dólares por onza troy (oz).</p>${monthlyToggle}`},
     inmueble:{title:'¿Cuánto pagaste y cuánto vale hoy?',fields:`<div class="f2"><div class="field"><label>Año de compra</label><input type="number" id="yearBuy" value="2010" min="1948" max="2025"></div><div class="field"><label>Precio de compra (USD)</label><input type="number" id="amtStart" autocomplete="off" value="80000" min="1"></div></div><div class="field"><label>¿Cuánto vale hoy? (USD)</label><input type="number" id="amtNow" autocomplete="off" value="140000" min="0"></div>`},
@@ -563,7 +563,7 @@ function toggleMonthly(row){
 function getLivePrice(type){
   if(type==='btc'&&crypto.btc)return'$'+fmtN(Math.round(crypto.btc))+' / BTC';
   if(type==='oro'&&crypto.gold)return'$'+fmtN(Math.round(crypto.gold))+' / oz';
-  if(type==='sp500'){const v=window._vooPrice;return v?'$'+v.toLocaleString('es-AR',{maximumFractionDigits:2})+' / VOO':'cargando…';}
+  if(type==='sp500'){const sp500Keys=Object.keys(PRICE_HISTORY.sp500).map(Number).sort((a,b)=>a-b),latestSpYr=sp500Keys[sp500Keys.length-1];const spVal=PRICE_HISTORY.sp500[latestSpYr];return spVal?'S&P 500: '+fmtN(Math.round(spVal))+' pts ('+latestSpYr+')':'cargando…';}
   return null;
 }
 
@@ -598,9 +598,9 @@ function runComparisonModal(){
     const opt=CMP_OPTIONS.find(o=>o.id===id);let finalNomG,dataNote='';
     if(id==='colchon'){finalNomG=0;dataNote='0% nominal';}
     else if(PRICE_HISTORY[id]&&Object.keys(PRICE_HISTORY[id]).length>0){
-      const prices=PRICE_HISTORY[id],priceYears=Object.keys(prices).map(Number);
-      const startYr=Math.max(yearBuy,Math.min(...priceYears)),endYr=Math.min(2025,Math.max(...priceYears));
-      const pStart=prices[startYr],pEnd=prices[endYr];
+      const prices=PRICE_HISTORY[id],priceYears=Object.keys(prices).map(Number).sort((a,b)=>a-b);
+      const startYr=Math.max(yearBuy,priceYears[0]),endYr=priceYears[priceYears.length-1];
+      const pStart=prices[startYr]||interpolar(prices,startYr),pEnd=prices[endYr]||interpolar(prices,endYr);
       if(!pStart||!pEnd){finalNomG=0;dataNote='sin datos';}else{finalNomG=(pEnd/pStart)-1;dataNote=`${startYr}→${endYr}`;}
     }else{const annRate=ANNUAL_RETURNS[id]||0.03;finalNomG=(amtStart*Math.pow(1+annRate,years)/amtStart)-1;dataNote=`~${(annRate*100).toFixed(0)}% anual`;}
     const finalRealG=((1+finalNomG)/inflAcumFactor)-1;
@@ -639,7 +639,6 @@ function calcular(){
   if(tp==='sp500'&&(!apiStatus.sp500||Object.keys(PRICE_HISTORY.sp500).length<3)){alert('El historial del S&P 500 no está disponible. Recargá la página.');return;}
   if(tp==='oro'&&(!apiStatus.oro||Object.keys(PRICE_HISTORY.oro).length<3)){alert('El historial del oro no está disponible. Recargá la página.');return;}
   if(tp==='btc'&&!crypto.btc){alert('El precio actual de Bitcoin no está disponible. Recargá la página.');return;}
-  if(tp==='sp500'&&!window._vooPrice){alert('El precio actual del ETF VOO no está disponible. Recargá la página.');return;}
   if(tp==='oro'&&!crypto.gold){alert('El precio actual del oro no está disponible. Recargá la página.');return;}
 
   const yr=parseInt($('yearBuy')?.value);
@@ -668,12 +667,21 @@ function calcular(){
     for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),pYear=getOro(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)ozAccum+=a/pYear;investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=ozAccum*pYear;}
     amtStart=investedByYear[years];amtEnd=ozAccum*(crypto.gold||PRICE_HISTORY.oro[2025]);nomG=(amtEnd/amtStart)-1;
   }else if(tp==='sp500'){
-    const pStartSP=getSP(yr),sp500Keys=Object.keys(PRICE_HISTORY.sp500).map(Number).sort((a,b)=>a-b);
-    const latestSpYr=sp500Keys[sp500Keys.length-1]||2025,vooFactor=window._vooPrice/(PRICE_HISTORY.sp500[latestSpYr]||1);
-    const pEndVOO=window._vooPrice,dividends=document.querySelector('input[name="spDividends"]:checked')?.value==='si',divRate=dividends?0.02:0;
-    const pStartVOO=pStartSP*vooFactor;let sharesAccum=initialAmt/pStartVOO;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
-    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),pSPYear=getSP(yy),pVOOYear=pSPYear*vooFactor*Math.pow(1+divRate,i),a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)sharesAccum+=a/pVOOYear;if(divRate>0)sharesAccum*=(1+divRate);investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=sharesAccum*pVOOYear;}
-    amtStart=investedByYear[years];amtEnd=sharesAccum*pEndVOO;nomG=(amtEnd/amtStart)-1;
+    // Usamos el índice S&P 500 directamente (FRED). El factor de escala cancela en el retorno.
+    const sp500Keys=Object.keys(PRICE_HISTORY.sp500).map(Number).sort((a,b)=>a-b);
+    const latestSpYr=sp500Keys[sp500Keys.length-1]||2024;
+    const pStart=getSP(yr),pEnd=PRICE_HISTORY.sp500[latestSpYr]||getSP(latestSpYr);
+    if(!pStart||pStart<=0){alert('No hay datos del S&P 500 para '+yr+'. El índice tiene datos desde 1950.');return;}
+    if(!pEnd||pEnd<=0){alert('No se pudo obtener el valor actual del S&P 500. Recargá la página.');return;}
+    const dividends=document.querySelector('input[name="spDividends"]:checked')?.value==='si',divRate=dividends?0.015:0;
+    let unitsAccum=initialAmt/pStart;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
+    for(let i=1;i<=years;i++){
+      const yy=Math.min(yr+i,latestSpYr),pYear=getSP(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;
+      if(hasMonthly)unitsAccum+=a/pYear;
+      if(dividends)unitsAccum*=(1+divRate);
+      investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=unitsAccum*pYear;
+    }
+    amtStart=investedByYear[years];amtEnd=unitsAccum*pEnd;nomG=(amtEnd/amtStart)-1;
   }else if(tp==='plazo_fijo'){
     const tasa=(parseFloat($('plazoTasa')?.value)||3)/100;amtStart=initialAmt;
     let amtNowVal=parseFloat($('amtNow')?.value);
@@ -780,7 +788,7 @@ function runAportesSim(){
   const inflAcumFactor=curCPI/cs,totalInv=state.amtStart+monthly*12*years;
   let finalNom=state.amtEnd;
   if(strategy==='btc'){const pEnd=crypto.btc||PRICE_HISTORY.btc[2025]||PRICE_HISTORY.btc[2024];if(pEnd){let extraBtc=0;for(let i=1;i<=years;i++){const pp=getBTC(Math.min(yr+i,2025))||pEnd;if(pp)extraBtc+=(monthly*12)/pp;}finalNom+=extraBtc*pEnd;}}
-  else if(strategy==='sp500'){const sp2010=getSP(2010),vooFactor=sp2010?(118/sp2010):null,pEndVOO=window._vooPrice||(vooFactor&&PRICE_HISTORY.sp500[2025]?PRICE_HISTORY.sp500[2025]*vooFactor:null);if(vooFactor&&pEndVOO){for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),ppS=getSP(yr+i-1)||getSP(yr),ppE=getSP(yy)||getSP(2025);if(ppS&&ppE)finalNom+=(monthly*12)*(ppE/ppS)*(pEndVOO/(ppE*vooFactor));}}}
+  else if(strategy==='sp500'){const sp500Keys=Object.keys(PRICE_HISTORY.sp500).map(Number).sort((a,b)=>a-b),latestSpYr=sp500Keys[sp500Keys.length-1]||2024,pEnd=PRICE_HISTORY.sp500[latestSpYr];if(pEnd){let extraUnits=0;for(let i=1;i<=years;i++){const yy=Math.min(yr+i,latestSpYr),pYear=getSP(yy)||pEnd;extraUnits+=(monthly*12)/pYear;}finalNom+=extraUnits*pEnd;}}
   else if(strategy==='oro'){const pEnd=crypto.gold||PRICE_HISTORY.oro[2025]||PRICE_HISTORY.oro[2024];if(pEnd){let extraOz=0;for(let i=1;i<=years;i++){const pp=getOro(Math.min(yr+i,2025))||pEnd;if(pp)extraOz+=(monthly*12)/pp;}finalNom+=extraOz*pEnd;}}
   else finalNom=totalInv;
   const finalReal=finalNom/inflAcumFactor,cls=finalReal>=totalInv?'cg':'cr';
