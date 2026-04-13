@@ -128,9 +128,10 @@ exports.handler = async (event) => {
     // ── BTC TODOS LOS AÑOS DE UNA (1 request, diciembre de cada año) ──
     if (type === 'btc_all') {
       if (!CRYPTO_KEY) throw new Error('CRYPTOCOMPARE_API_KEY no configurada');
-      const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000&toTs=${Math.floor(Date.now() / 1000)}`;
+      // allData=true en v1 devuelve todo el historial desde 2010 (vs limit=2000 días ≈ solo 2020+)
+      const url = `https://min-api.cryptocompare.com/data/histoday?fsym=BTC&tsym=USD&allData=true`;
       const data = await fetchJSON(url, { Authorization: `Apikey ${CRYPTO_KEY}` });
-      const days = data?.Data?.Data;
+      const days = data?.Data;
       if (!days || days.length === 0) throw new Error('CryptoCompare no devolvió datos históricos');
       const result = {};
       days.forEach(d => {
@@ -190,9 +191,9 @@ exports.handler = async (event) => {
           ? fetchJSON(`https://finnhub.io/api/v1/quote?symbol=VOO&token=${FINNHUB_KEY}`)
           : Promise.reject(new Error('FINNHUB_API_KEY no configurada')),
 
-        // BTC histórico (CryptoCompare)
+        // BTC histórico (CryptoCompare) — allData=true da historia completa desde 2010
         CRYPTO_KEY
-          ? fetchJSON(`https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000&toTs=${Math.floor(Date.now() / 1000)}`, { Authorization: `Apikey ${CRYPTO_KEY}` })
+          ? fetchJSON(`https://min-api.cryptocompare.com/data/histoday?fsym=BTC&tsym=USD&allData=true`, { Authorization: `Apikey ${CRYPTO_KEY}` })
           : Promise.reject(new Error('CRYPTOCOMPARE_API_KEY no configurada')),
 
         // Oro histórico (FreeGoldAPI, sin key)
@@ -231,10 +232,10 @@ exports.handler = async (event) => {
         console.error('VOO fetch failed:', vooRes.reason?.message);
       }
 
-      // ── BTC histórico diciembre por año
+      // ── BTC histórico diciembre por año (v1 allData → data.Data es array directo)
       const btc = {};
       if (btcRes.status === 'fulfilled') {
-        const days = btcRes.value?.Data?.Data || [];
+        const days = btcRes.value?.Data || [];
         days.forEach(d => {
           const date = new Date(d.time * 1000);
           if (date.getMonth() === 11) {

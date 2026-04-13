@@ -550,6 +550,16 @@ function renderStep2(type){
   };
   const cfg=cfgs[type]||cfgs.otro;
   card.innerHTML=`<div class="step-lbl"><div class="step-num">2</div><div class="step-title">${cfg.title}</div></div>${cfg.fields}`;
+  // Actualizar min del año dinámicamente según datos reales cargados
+  const yi=$('yearBuy');
+  if(yi){
+    const minYr=getAssetMinYear(type);
+    if(minYr){
+      yi.min=minYr;
+      if(parseInt(yi.value)<minYr)yi.value=minYr;
+      yi.insertAdjacentHTML('afterend',`<span style="font-size:11px;color:var(--ink2);display:block;margin-top:3px">Datos disponibles desde <b>${minYr}</b></span>`);
+    }
+  }
 }
 
 function toggleMonthly(row){
@@ -627,8 +637,17 @@ function runComparisonModal(){
   setTimeout(()=>$('cmpResultM').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
 }
 
-function getTypeName(tp){return{inmueble:'Propiedad',vehiculo:'Vehículo',colchon:'Dólar colchón',plazo_fijo:'Plazo fijo',sp500:'ETF S&P 500 (VOO)',btc:'Bitcoin',oro:'Oro',otro:'Tu inversión'}[tp]||'Tu inversión';}
+function getTypeName(tp){return{inmueble:'Propiedad',vehiculo:'Vehículo',colchon:'Dólar colchón',plazo_fijo:'Plazo fijo',sp500:'S&P 500',btc:'Bitcoin',oro:'Oro',otro:'Tu inversión'}[tp]||'Tu inversión';}
 function getTypeIco(tp){return{inmueble:'🏠',vehiculo:'🚗',colchon:'💵',plazo_fijo:'🏦',sp500:'📈',btc:'₿',oro:'🪙',otro:'📦'}[tp]||'📦';}
+
+// Retorna el primer año con datos reales para activos que dependen de APIs históricas
+function getAssetMinYear(tp){
+  const first=h=>Object.keys(h).map(Number).filter(y=>h[y]>0).sort((a,b)=>a-b)[0]??null;
+  if(tp==='sp500')return first(PRICE_HISTORY.sp500);
+  if(tp==='btc')return first(PRICE_HISTORY.btc);
+  if(tp==='oro')return first(PRICE_HISTORY.oro);
+  return null;
+}
 
 /* CALCULAR */
 function calcular(){
@@ -643,6 +662,13 @@ function calcular(){
 
   const yr=parseInt($('yearBuy')?.value);
   if(!yr||yr<1948||yr>2025){alert('Verificá el año.');return;}
+  // Validar año mínimo según datos reales disponibles para el activo
+  const minAY=getAssetMinYear(tp);
+  if(minAY!==null&&yr<minAY){
+    alert(`No hay datos de ${getTypeName(tp)} para ${yr}.\n\nEl primer año disponible es ${minAY}.\nIngresá un año entre ${minAY} y 2025.`);
+    const yi=$('yearBuy');if(yi){yi.value=minAY;yi.min=minAY;}
+    return;
+  }
   const cs=getCPI(yr)||getCPI(2000);
   if(!cs){alert('No hay datos de CPI para el año '+yr+'. Probá con un año más reciente.');return;}
   const inflAcumFactor=curCPI/cs,years=2026-yr;
@@ -657,15 +683,19 @@ function calcular(){
     for(let i=1;i<=years;i++){const a=hasMonthly?monthlyAmt*12:0;nominalByYear[i]=nominalByYear[i-1]+a;investedByYear[i]=investedByYear[i-1]+a;}
     amtStart=investedByYear[years];amtEnd=nominalByYear[years];nomG=0;
   }else if(tp==='btc'){
-    const pStart=getBTC(yr),pEnd=crypto.btc||PRICE_HISTORY.btc[2025];
+    const btcKeys=Object.keys(PRICE_HISTORY.btc).map(Number).sort((a,b)=>a-b);
+    const latestBtcYr=btcKeys[btcKeys.length-1]||2024;
+    const pStart=getBTC(yr),pEnd=crypto.btc||PRICE_HISTORY.btc[latestBtcYr];
     let btcAccum=initialAmt/pStart;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
-    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),pYear=getBTC(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)btcAccum+=a/pYear;investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=btcAccum*pYear;}
-    amtStart=investedByYear[years];amtEnd=btcAccum*(crypto.btc||PRICE_HISTORY.btc[2025]);nomG=(amtEnd/amtStart)-1;
+    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,latestBtcYr),pYear=getBTC(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)btcAccum+=a/pYear;investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=btcAccum*pYear;}
+    amtStart=investedByYear[years];amtEnd=btcAccum*pEnd;nomG=(amtEnd/amtStart)-1;
   }else if(tp==='oro'){
-    const pStart=getOro(yr),pEnd=crypto.gold||PRICE_HISTORY.oro[2025];
+    const oroKeys=Object.keys(PRICE_HISTORY.oro).map(Number).sort((a,b)=>a-b);
+    const latestOroYr=oroKeys[oroKeys.length-1]||2024;
+    const pStart=getOro(yr),pEnd=crypto.gold||PRICE_HISTORY.oro[latestOroYr];
     let ozAccum=initialAmt/pStart;nominalByYear[0]=initialAmt;investedByYear[0]=initialAmt;
-    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,2025),pYear=getOro(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)ozAccum+=a/pYear;investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=ozAccum*pYear;}
-    amtStart=investedByYear[years];amtEnd=ozAccum*(crypto.gold||PRICE_HISTORY.oro[2025]);nomG=(amtEnd/amtStart)-1;
+    for(let i=1;i<=years;i++){const yy=Math.min(yr+i,latestOroYr),pYear=getOro(yy)||pEnd,a=hasMonthly?monthlyAmt*12:0;if(hasMonthly)ozAccum+=a/pYear;investedByYear[i]=investedByYear[i-1]+a;nominalByYear[i]=ozAccum*pYear;}
+    amtStart=investedByYear[years];amtEnd=ozAccum*pEnd;nomG=(amtEnd/amtStart)-1;
   }else if(tp==='sp500'){
     // Usamos el índice S&P 500 directamente (FRED). El factor de escala cancela en el retorno.
     const sp500Keys=Object.keys(PRICE_HISTORY.sp500).map(Number).sort((a,b)=>a-b);
